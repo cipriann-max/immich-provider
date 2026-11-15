@@ -18,33 +18,12 @@ class ImmichEndpoints(private val client: ImmichApiClient) {
             ServerVersionResponseDto.serializer(),
         )
 
-    suspend fun getVersionCheck(): VersionCheckStateResponseDto =
-        client.execute(
-            ApiRequest("GET", "/server/version-check", mapOf(
-            )),
-            VersionCheckStateResponseDto.serializer(),
-        )
-
-    suspend fun pingServer(): ServerPingResponse =
-        client.execute(
-            ApiRequest("GET", "/server/ping", mapOf(
-            )),
-            ServerPingResponse.serializer(),
-        )
-
     suspend fun login(body: LoginCredentialDto): LoginResponseDto =
         client.execute(
             ApiRequest("POST", "/auth/login", mapOf(
             )),
             LoginResponseDto.serializer(),
             client.encodeBody(LoginCredentialDto.serializer(), body),
-        )
-
-    suspend fun validateAccessToken(): ValidateAccessTokenResponseDto =
-        client.execute(
-            ApiRequest("POST", "/auth/validateToken", mapOf(
-            )),
-            ValidateAccessTokenResponseDto.serializer(),
         )
 
     suspend fun getMyUser(): UserAdminResponseDto =
@@ -64,60 +43,6 @@ class ImmichEndpoints(private val client: ImmichApiClient) {
                 "name" to name?.toString(),
             )),
             ListSerializer(AlbumResponseDto.serializer()),
-        )
-
-    suspend fun getAlbumInfo(id: String, key: String? = null, slug: String? = null): AlbumResponseDto =
-        client.execute(
-            ApiRequest("GET", "/albums/${id}", mapOf(
-                "key" to key?.toString(),
-                "slug" to slug?.toString(),
-            )),
-            AlbumResponseDto.serializer(),
-        )
-
-    suspend fun getTimeBuckets(albumId: String? = null, bbox: String? = null, isFavorite: Boolean? = null, isTrashed: Boolean? = null, key: String? = null, order: AssetOrder? = null, orderBy: AssetOrderBy? = null, personId: String? = null, slug: String? = null, tagId: String? = null, userId: String? = null, visibility: AssetVisibility? = null, withCoordinates: Boolean? = null, withPartners: Boolean? = null, withStacked: Boolean? = null): List<TimeBucketsResponseDto> =
-        client.execute(
-            ApiRequest("GET", "/timeline/buckets", mapOf(
-                "albumId" to albumId?.toString(),
-                "bbox" to bbox?.toString(),
-                "isFavorite" to isFavorite?.toString(),
-                "isTrashed" to isTrashed?.toString(),
-                "key" to key?.toString(),
-                "order" to order?.toString(),
-                "orderBy" to orderBy?.toString(),
-                "personId" to personId?.toString(),
-                "slug" to slug?.toString(),
-                "tagId" to tagId?.toString(),
-                "userId" to userId?.toString(),
-                "visibility" to visibility?.toString(),
-                "withCoordinates" to withCoordinates?.toString(),
-                "withPartners" to withPartners?.toString(),
-                "withStacked" to withStacked?.toString(),
-            )),
-            ListSerializer(TimeBucketsResponseDto.serializer()),
-        )
-
-    suspend fun getTimeBucket(albumId: String? = null, bbox: String? = null, isFavorite: Boolean? = null, isTrashed: Boolean? = null, key: String? = null, order: AssetOrder? = null, orderBy: AssetOrderBy? = null, personId: String? = null, slug: String? = null, tagId: String? = null, timeBucket: String, userId: String? = null, visibility: AssetVisibility? = null, withCoordinates: Boolean? = null, withPartners: Boolean? = null, withStacked: Boolean? = null): TimeBucketAssetResponseDto =
-        client.execute(
-            ApiRequest("GET", "/timeline/bucket", mapOf(
-                "timeBucket" to timeBucket.toString(),
-                "albumId" to albumId?.toString(),
-                "bbox" to bbox?.toString(),
-                "isFavorite" to isFavorite?.toString(),
-                "isTrashed" to isTrashed?.toString(),
-                "key" to key?.toString(),
-                "order" to order?.toString(),
-                "orderBy" to orderBy?.toString(),
-                "personId" to personId?.toString(),
-                "slug" to slug?.toString(),
-                "tagId" to tagId?.toString(),
-                "userId" to userId?.toString(),
-                "visibility" to visibility?.toString(),
-                "withCoordinates" to withCoordinates?.toString(),
-                "withPartners" to withPartners?.toString(),
-                "withStacked" to withStacked?.toString(),
-            )),
-            TimeBucketAssetResponseDto.serializer(),
         )
 
     suspend fun searchAssets(key: String? = null, slug: String? = null, body: MetadataSearchDto): SearchResponseDto =

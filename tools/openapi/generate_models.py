@@ -35,18 +35,14 @@ from typing import Any
 # --------------------------------------------------------------------------------------
 OPERATIONS: list[str] = [
     "getServerVersion",
-    "getVersionCheck",
-    "pingServer",
     "login",
-    "validateAccessToken",
     "getMyUser",
     "getAllAlbums",
-    "getAlbumInfo",
-    "getTimeBuckets",
-    "getTimeBucket",
     "searchAssets",
     "getAssetInfo",
 ]
+
+# Binary/streaming operations, emitted with a download helper instead of a JSON decoder.
 
 # Operations whose 200 response is raw bytes (handled by the binary runtime path).
 BINARY_OPERATIONS: list[str] = [

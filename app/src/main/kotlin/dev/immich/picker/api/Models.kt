@@ -30,20 +30,6 @@ data class ServerVersionResponseDto(
 )
 
 @Serializable
-data class VersionCheckStateResponseDto(
-    /** Last check timestamp */
-    val checkedAt: String? = null,
-    /** Release version */
-    val releaseVersion: String? = null,
-)
-
-@Serializable
-data class ServerPingResponse(
-    /** Wire field `res`. */
-    val res: String = "",
-)
-
-@Serializable
 data class LoginCredentialDto(
     /** User email */
     val email: String = "",
@@ -69,12 +55,6 @@ data class LoginResponseDto(
     val userEmail: String = "",
     /** User ID */
     val userId: String = "",
-)
-
-@Serializable
-data class ValidateAccessTokenResponseDto(
-    /** Authentication status */
-    val authStatus: Boolean = false,
 )
 
 typealias UserAvatarColor = String
@@ -235,74 +215,6 @@ data class AlbumResponseDto(
     val startDate: String? = null,
     /** Last update date */
     val updatedAt: String = "",
-)
-
-typealias AssetOrderBy = String
-
-/** Wire values for `AssetOrderBy` (Immich 3.4.1). */
-object AssetOrderByValues {
-    const val TAKENAT: String = "takenAt"
-    const val CREATEDAT: String = "createdAt"
-}
-
-typealias AssetVisibility = String
-
-/** Wire values for `AssetVisibility` (Immich 3.4.1). */
-object AssetVisibilityValues {
-    const val ARCHIVE: String = "archive"
-    const val TIMELINE: String = "timeline"
-    const val HIDDEN: String = "hidden"
-    const val LOCKED: String = "locked"
-}
-
-@Serializable
-data class TimeBucketsResponseDto(
-    /** Number of assets in this time bucket */
-    val count: Long = 0L,
-    /** Time bucket identifier in YYYY-MM-DD format representing the start of the time period */
-    val timeBucket: String = "",
-)
-
-@Serializable
-data class TimeBucketAssetResponseDto(
-    /** Array of city names extracted from EXIF GPS data */
-    val city: List<String?>? = null,
-    /** Array of country names extracted from EXIF GPS data */
-    val country: List<String?>? = null,
-    /** Array of UTC timestamps when each asset was originally uploaded to Immich */
-    val createdAt: List<String> = emptyList(),
-    /** Array of video/gif durations in milliseconds (null for static images) */
-    val duration: List<Int?> = emptyList(),
-    /** Array of file creation timestamps in UTC */
-    val fileCreatedAt: List<String> = emptyList(),
-    /** Array of asset IDs in the time bucket */
-    val id: List<String> = emptyList(),
-    /** Array indicating whether each asset is favorited */
-    val isFavorite: List<Boolean> = emptyList(),
-    /** Array indicating whether each asset is an image (false for videos) */
-    val isImage: List<Boolean> = emptyList(),
-    /** Array indicating whether each asset is in the trash */
-    val isTrashed: List<Boolean> = emptyList(),
-    /** Array of latitude coordinates extracted from EXIF GPS data */
-    val latitude: List<Double?>? = null,
-    /** Array of live photo video asset IDs (null for non-live photos) */
-    val livePhotoVideoId: List<String?> = emptyList(),
-    /** Array of UTC offset hours at the time each photo was taken. Positive values are east of UTC, negative values are west of */
-    val localOffsetHours: List<Double> = emptyList(),
-    /** Array of longitude coordinates extracted from EXIF GPS data */
-    val longitude: List<Double?>? = null,
-    /** Array of owner IDs for each asset */
-    val ownerId: List<String> = emptyList(),
-    /** Array of projection types for 360° content (e.g., "EQUIRECTANGULAR", "CUBEFACE", "CYLINDRICAL") */
-    val projectionType: List<String?> = emptyList(),
-    /** Array of aspect ratios (width/height) for each asset */
-    val ratio: List<Double> = emptyList(),
-    /** Array of stack information as [stackId, assetCount] tuples (null for non-stacked assets) */
-    val stack: List<List<String>?>? = null,
-    /** Array of BlurHash strings for generating asset previews (base64 encoded) */
-    val thumbhash: List<String?> = emptyList(),
-    /** Array of visibility statuses for each asset (e.g., ARCHIVE, TIMELINE, HIDDEN, LOCKED) */
-    val visibility: List<AssetVisibility> = emptyList(),
 )
 
 @Serializable
@@ -480,6 +392,16 @@ data class EnumFilterAssetType(
     /** Wire field `notIn`. */
     val notIn: List<AssetTypeEnum>? = null,
 )
+
+typealias AssetVisibility = String
+
+/** Wire values for `AssetVisibility` (Immich 3.4.1). */
+object AssetVisibilityValues {
+    const val ARCHIVE: String = "archive"
+    const val TIMELINE: String = "timeline"
+    const val HIDDEN: String = "hidden"
+    const val LOCKED: String = "locked"
+}
 
 @Serializable
 data class EnumFilterAssetVisibility(

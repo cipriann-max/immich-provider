@@ -32,26 +32,6 @@ data class PickerAlbum(
     val coverAssetId: String?,
 )
 
-/** A month bucket under `Timeline/`. */
-data class MonthBucket(
-    /** `YYYY-MM` in the asset's local time. */
-    val yearMonth: String,
-    /** Immich's opaque bucket key (`YYYY-MM-DDT00:00:00.000Z`). */
-    val bucketKey: String,
-    val count: Int,
-) {
-    val displayName: String get() = yearMonth
-    val epochMillisApprox: Long
-        get() {
-            val year = yearMonth.substringBefore('-').toIntOrNull() ?: 1970
-            val month = yearMonth.substringAfter('-').toIntOrNull() ?: 1
-            return java.time.LocalDate.of(year, month, 1)
-                .atStartOfDay(java.time.ZoneOffset.UTC)
-                .toInstant()
-                .toEpochMilli()
-        }
-}
-
 /** A page of assets plus the cursor to fetch the next one. */
 data class AssetPage(
     val assets: List<PickerAsset>,

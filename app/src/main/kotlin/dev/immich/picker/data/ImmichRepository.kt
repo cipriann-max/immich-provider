@@ -15,7 +15,6 @@ import dev.immich.picker.api.SearchFilter
 import dev.immich.picker.api.BoolFilter
 import dev.immich.picker.api.DateFilter
 import dev.immich.picker.api.IdsFilter
-import dev.immich.picker.api.TimeBucketAssetResponseDto
 import dev.immich.picker.net.ApiException
 import dev.immich.picker.net.ImmichApiClient
 import kotlinx.serialization.json.JsonPrimitive
@@ -41,8 +40,6 @@ class ImmichRepository(
 
     suspend fun serverVersion(): ServerVersionResponseDto = api.getServerVersion()
 
-    suspend fun ping(): Boolean = api.pingServer().res == "pong"
-
     /** Returns the signed-in user's display data; validates the credential. */
     suspend fun me(): Pair<String?, String?> {
         val user = api.getMyUser()
@@ -64,44 +61,7 @@ class ImmichRepository(
         return albumCache.values.sortedByDescending { it.updatedAtMillis }
     }
 
-    suspend fun album(albumId: String, forceRefresh: Boolean = false): PickerAlbum? {
-        if (!forceRefresh) albumCache[albumId]?.let { return it }
-        val album = runCatching { api.getAlbumInfo(albumId) }.getOrNull() ?: return null
-        return album.toPickerAlbum().also { albumCache[it.id] = it }
-    }
-
     // ------------------------------------------------------------- timeline buckets
-
-    /**
-     * Month buckets for the timeline, newest first.
-     *
-     * Immich truncates the timeline bucket key to a month (`date_trunc('MONTH',
-     * localDateTime)`), which is exactly the `/Timeline/<YYYY-MM>` grouping this
-     * provider needs, and it is computed server-side so 100k+ libraries stay fast.
-     */
-    suspend fun timelineBuckets(): List<MonthBucket> =
-        api.getTimeBuckets(order = "desc")
-            .map { bucket ->
-                val yearMonth = bucket.timeBucket.take(7)
-                MonthBucket(
-                    yearMonth = yearMonth,
-                    bucketKey = bucket.timeBucket,
-                    count = bucket.count.toInt(),
-                )
-            }
-            .filter { it.yearMonth.length == 7 }
-            .distinctBy { it.yearMonth }
-            .sortedByDescending { it.yearMonth }
-
-    /** Assets inside a single month bucket. */
-    suspend fun bucketAssets(bucketKey: String, limit: Int = PAGE_SIZE): List<PickerAsset> {
-        val response = api.getTimeBucket(
-            timeBucket = bucketKey,
-            order = "desc",
-            withStacked = false,
-        )
-        return response.toPickerAssets().take(limit)
-    }
 
     // ------------------------------------------------------------- album / favorites
 
@@ -250,37 +210,6 @@ class ImmichRepository(
         coverAssetId = albumThumbnailAssetId,
     )
 
-    /**
-     * Converts Immich's column-oriented time-bucket response into a flat list.
-     *
-     * `getTimeBucket` returns parallel arrays (`id[]`, `isImage[]`, ...) rather than
-     * an array of objects. Sizes must be read defensively: a server that adds or
-     * drops a column leaves the arrays different lengths.
-     */
-    private fun TimeBucketAssetResponseDto.toPickerAssets(): List<PickerAsset> {
-        val count = id.size
-        val result = ArrayList<PickerAsset>(count)
-        for (i in 0 until count) {
-            val assetId = id.getOrNull(i) ?: continue
-            val image = isImage.getOrNull(i) ?: true
-            val taken = parseIso(fileCreatedAt.getOrNull(i)) ?: 0L
-            val mime = if (image) "image/jpeg" else "video/mp4"
-            result.add(
-                PickerAsset(
-                    id = assetId,
-                    mimeType = mime,
-                    displayName = displayNameFor(null, assetId, mime, taken),
-                    sizeBytes = null,
-                    takenAtMillis = taken,
-                    isVideo = !image,
-                    isFavorite = isFavorite.getOrNull(i) ?: false,
-                    thumbhash = thumbhash.getOrNull(i),
-                ),
-            )
-        }
-        return result
-    }
-
     companion object {
         private const val TAG = "ImmichRepository"
 
@@ -357,7 +286,3 @@ internal suspend fun ImmichApiClient.loginWithPassword(email: String, password: 
     return response.accessToken
 }
 
-internal suspend fun ImmichApiClient.validateToken(): Boolean {
-    val endpoints = ImmichEndpoints(this)
-    return endpoints.validateAccessToken().authStatus
-}
