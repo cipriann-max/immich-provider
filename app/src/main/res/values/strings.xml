@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Immich Picker</string>
+    <!--
+        The app presents itself as plain "Immich" because that is the source the user
+        picks from in a file picker; "Immich Picker" would read as a second, separate
+        product next to the official app.
+    -->
+    <string name="app_name">Immich</string>
     <string name="provider_root_title">Immich</string>
 
     <string name="notif_channel_errors">Connection problems</string>
-    <string name="notif_channel_errors_desc">Shown when Immich Picker cannot reach your server or your login expired.</string>
+    <string name="notif_channel_errors_desc">Shown when Immich cannot reach your server or your login expired.</string>
     <string name="notif_channel_version">Server version warnings</string>
     <string name="notif_channel_version_desc">Shown when your Immich server is newer or older than this app was built for.</string>
 

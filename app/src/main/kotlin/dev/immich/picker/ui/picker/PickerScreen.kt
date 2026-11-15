@@ -108,10 +108,8 @@ fun PickerScreen(
     val selectedTab = if (showingAlbums) PickerTab.ALBUMS else PickerTab.TIMELINE
 
     Scaffold(
-        // The activity draws edge-to-edge, so the app bar must inset itself away from
-        // the status bar / camera cutout.
         topBar = {
-            Column(modifier = Modifier.statusBarsPadding()) {
+            Column {
                 TopAppBar(
                     title = {
                         Text(

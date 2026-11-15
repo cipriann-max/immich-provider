@@ -8,7 +8,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -56,7 +55,10 @@ class PickerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Deliberately NOT enableEdgeToEdge(): the picker is a full-screen browsing
+        // surface, and drawing under the status bar only produced a top row of content
+        // hidden behind the clock and notification icons. Letting the system own the
+        // status bar keeps it visible and correct in both gesture and 3-button modes.
         ImmichService.initialize(this)
 
         val action = intent?.action
