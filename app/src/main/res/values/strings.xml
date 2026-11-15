@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Immich Picker</string>
+    <string name="provider_root_title">Immich</string>
+
+    <string name="notif_channel_errors">Connection problems</string>
+    <string name="notif_channel_errors_desc">Shown when Immich Picker cannot reach your server or your login expired.</string>
+    <string name="notif_channel_version">Server version warnings</string>
+    <string name="notif_channel_version_desc">Shown when your Immich server is newer or older than this app was built for.</string>
+
+    <string name="notif_auth_title">Immich login expired</string>
+    <string name="notif_auth_text">Tap to sign in again so Immich stays available in the file picker.</string>
+    <string name="notif_network_title">Cannot reach Immich</string>
+    <string name="notif_network_text">The Immich server is unreachable. Tap to check your connection settings.</string>
+    <string name="notif_incompatible_title">Immich server not supported</string>
+    <string name="notif_version_title">Immich server version differs</string>
+</resources>

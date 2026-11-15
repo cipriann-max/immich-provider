@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The Compose UI supplies its own Material 3 theme. This XML theme only needs
+        to provide a sane window background and a non-flashing launch surface.
+    -->
+    <style name="Theme.ImmichPicker" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple photo-stack glyph: two overlapping rounded frames with a sun and hill. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.35"
+        android:pathData="M34,30h34a6,6 0 0 1 6,6v34a6,6 0 0 1 -6,6H34a6,6 0 0 1 -6,-6V36a6,6 0 0 1 6,-6z" />
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,42h32a6,6 0 0 1 6,6v20a6,6 0 0 1 -6,6H42a6,6 0 0 1 -6,-6V48a6,6 0 0 1 6,-6z" />
+
+    <path
+        android:fillColor="#2C3E50"
+        android:pathData="M50,56a4,4 0 1 0 8,0a4,4 0 1 0 -8,0z" />
+
+    <path
+        android:fillColor="#2C3E50"
+        android:pathData="M36,74l12,-14l8,9l6,-6l12,11v0H36z" />
+</vector>
