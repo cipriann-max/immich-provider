@@ -67,21 +67,50 @@ object ThumbnailLoader {
         return image
     }
 
+    /**
+     * Loads a thumbnail for an asset we only know the id of, such as an album cover.
+     *
+     * Avoids a metadata round trip: the id is enough for the thumbnail endpoint, and the
+     * cache key falls back to a "nohash" suffix when the asset has no thumbhash yet.
+     */
+    suspend fun loadById(assetId: String, size: ThumbnailSize): ImageBitmap? {
+        val cachedDisk = withContext(Dispatchers.IO) {
+            ImmichService.thumbnails.get(assetId, size, thumbhash = null)
+        }
+        if (cachedDisk != null) {
+            val bitmap = withContext(Dispatchers.IO) { decode(cachedDisk) } ?: return null
+            return bitmap.asImageBitmap()
+        }
+
+        val session = ImmichService.session() ?: return null
+        val file = withContext(Dispatchers.IO) { downloadToDisk(assetId, null, size, session) }
+            ?: return null
+        val bitmap = withContext(Dispatchers.IO) { decode(file) } ?: return null
+        return bitmap.asImageBitmap()
+    }
+
     private suspend fun downloadToDisk(
         asset: PickerAsset,
         size: ThumbnailSize,
         session: ImmichService.Session,
+    ): File? = downloadToDisk(asset.id, asset.thumbhash, size, session)
+
+    private suspend fun downloadToDisk(
+        assetId: String,
+        thumbhash: String?,
+        size: ThumbnailSize,
+        session: ImmichService.Session,
     ): File? {
-        val temp = File(ImmichService.thumbnailsDirTemp, "${asset.id}-${size.wireName}.part")
+        val temp = File(ImmichService.thumbnailsDirTemp, "$assetId-${size.wireName}.part")
         temp.parentFile?.mkdirs()
         val ok = runCatching {
-            session.repository.downloadThumbnail(asset.id, size, temp)
+            session.repository.downloadThumbnail(assetId, size, temp)
         }.isSuccess
         if (!ok) {
             temp.delete()
             return null
         }
-        val committed = ImmichService.thumbnails.put(asset.id, size, asset.thumbhash, temp)
+        val committed = ImmichService.thumbnails.put(assetId, size, thumbhash, temp)
         temp.delete()
         return committed
     }

@@ -30,11 +30,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -102,47 +105,73 @@ fun PickerScreen(
     val showingAlbums = state.location == PickerLocation.Albums
     val canGoBack = state.location is PickerLocation.Album
     val selectable = !readOnly
+    val selectedTab = if (showingAlbums) PickerTab.ALBUMS else PickerTab.TIMELINE
 
     Scaffold(
         // The activity draws edge-to-edge, so the app bar must inset itself away from
         // the status bar / camera cutout.
         topBar = {
-            TopAppBar(
-                modifier = Modifier.statusBarsPadding(),
-                title = {
-                    Text(
-                        text = when (val loc = state.location) {
-                            PickerLocation.Recents -> "Immich"
-                            PickerLocation.Favorites -> "Favorites"
-                            PickerLocation.Albums -> "Albums"
-                            is PickerLocation.Album -> loc.album.name
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-                navigationIcon = {
-                    if (canGoBack) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Column(modifier = Modifier.statusBarsPadding()) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = when (val loc = state.location) {
+                                PickerLocation.Recents -> "Immich"
+                                PickerLocation.Favorites -> "Favorites"
+                                PickerLocation.Albums -> "Albums"
+                                is PickerLocation.Album -> loc.album.name
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    navigationIcon = {
+                        if (canGoBack) {
+                            IconButton(onClick = onBack) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.Filled.Close, contentDescription = "Close")
+                            }
                         }
-                    } else {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close")
+                    },
+                    actions = {
+                        // Sorting only applies to an asset grid, not the album list.
+                        if (!showingAlbums) {
+                            IconButton(onClick = onSortToggle) {
+                                Icon(
+                                    Icons.Filled.Sort,
+                                    contentDescription = "Sort: ${state.sort.label}",
+                                )
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (!showingAlbums) {
-                        IconButton(onClick = onSortToggle) {
-                            Icon(
-                                Icons.Filled.Sort,
-                                contentDescription = "Sort: ${state.sort.label}",
+                    },
+                )
+
+                if (!canGoBack) {
+                    PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+                        PickerTab.entries.forEach { tab ->
+                            Tab(
+                                selected = tab == selectedTab,
+                                onClick = {
+                                    when (tab) {
+                                        PickerTab.TIMELINE -> onOpenRecents()
+                                        PickerTab.ALBUMS -> onOpenAlbums()
+                                    }
+                                },
+                                // The icon carries the meaning; the label stays short so
+                                // both tabs fit a narrow phone without truncation.
+                                icon = { Icon(tab.icon, contentDescription = null) },
+                                text = { Text(tab.label) },
                             )
                         }
                     }
-                },
-            )
+                }
+            }
         },
         bottomBar = {
             if (selectable && state.selection.count > 0) {
@@ -161,7 +190,6 @@ fun PickerScreen(
                     state = state,
                     onOpenAlbum = onOpenAlbum,
                     onOpenFavorites = onOpenFavorites,
-                    onOpenRecents = onOpenRecents,
                 )
 
                 state.grid.loading -> CircularProgressIndicator(
@@ -381,25 +409,27 @@ private fun AlbumsPane(
     state: PickerUiState,
     onOpenAlbum: (PickerAlbum) -> Unit,
     onOpenFavorites: () -> Unit,
-    onOpenRecents: () -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            ListItem(
-                headlineContent = { Text("All photos") },
-                supportingContent = { Text("Newest first") },
-                leadingContent = { Icon(Icons.Filled.Folder, contentDescription = null) },
-                modifier = Modifier.selectable(selected = false, onClick = onOpenRecents),
-            )
-        }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 24.dp),
+    ) {
         item {
             ListItem(
                 headlineContent = { Text("Favorites") },
-                leadingContent = { Icon(Icons.Filled.Favorite, contentDescription = null) },
+                supportingContent = { Text("Everything you have starred") },
+                leadingContent = {
+                    Box(
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(Icons.Filled.Favorite, contentDescription = null)
+                    }
+                },
                 modifier = Modifier.selectable(selected = false, onClick = onOpenFavorites),
             )
         }
-        item { HorizontalDivider() }
 
         if (state.albumsLoading) {
             item {
@@ -420,17 +450,70 @@ private fun AlbumsPane(
             }
         }
 
+        if (!state.albumsLoading && state.albumsError == null && state.albums.isEmpty()) {
+            item {
+                EmptyPane(text = "No albums on this Immich server.")
+            }
+        }
+
         items(state.albums, key = { it.id }) { album ->
-            ListItem(
-                headlineContent = { Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                supportingContent = {
-                    Text(if (album.assetCount == 1) "1 item" else "${album.assetCount} items")
-                },
-                leadingContent = { Icon(Icons.Filled.Folder, contentDescription = null) },
-                modifier = Modifier.selectable(selected = false, onClick = { onOpenAlbum(album) }),
-            )
+            AlbumRow(album = album, onClick = { onOpenAlbum(album) })
         }
     }
+}
+
+/**
+ * Album row with its cover thumbnail.
+ *
+ * The cover is fetched from the album's `albumThumbnailAssetId` through the same disk and
+ * memory caches the grid uses, so opening the album afterwards shows no extra cost.
+ */
+@Composable
+private fun AlbumRow(album: PickerAlbum, onClick: () -> Unit) {
+    var cover by remember(album.id, album.coverAssetId) {
+        mutableStateOf<ImageBitmap?>(null)
+    }
+
+    LaunchedEffect(album.id, album.coverAssetId) {
+        val coverId = album.coverAssetId ?: return@LaunchedEffect
+        cover = ThumbnailLoader.loadById(coverId, ThumbnailSize.THUMBNAIL)
+    }
+
+    ListItem(
+        headlineContent = { Text(album.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Text(if (album.assetCount == 1) "1 item" else "${album.assetCount} items")
+        },
+        leadingContent = {
+            Box(
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                val image = cover
+                if (image != null) {
+                    Image(
+                        bitmap = image,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(Icons.Filled.Folder, contentDescription = null)
+                }
+            }
+        },
+        modifier = Modifier.selectable(selected = false, onClick = onClick),
+    )
+}
+
+/** Tabs shown above the content on the root screen. */
+private enum class PickerTab(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+) {
+    TIMELINE("Timeline", Icons.Filled.PhotoLibrary),
+    ALBUMS("Albums", Icons.Filled.Folder),
 }
 
 @Composable
