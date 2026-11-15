@@ -113,12 +113,14 @@ class ImmichRepository(
         albumId: String,
         cursor: String? = null,
         pageSize: Int = PAGE_SIZE,
+        newestFirst: Boolean = true,
     ): AssetPage {
         // The modern filter uses SearchFilter.albumIds (IdsFilter). The top-level
         // MetadataSearchDto.albumIds list was deprecated in Immich v3.2.0.
         val body = searchBody(
             cursor = cursor,
             pageSize = pageSize,
+            newestFirst = newestFirst,
             filter = SearchFilter(albumIds = IdsFilter(any = listOf(albumId))),
         )
         return api.searchAssets(body = body).toPage()
@@ -133,10 +135,12 @@ class ImmichRepository(
     suspend fun favoriteAssets(
         cursor: String? = null,
         pageSize: Int = PAGE_SIZE,
+        newestFirst: Boolean = true,
     ): AssetPage {
         val body = searchBody(
             cursor = cursor,
             pageSize = pageSize,
+            newestFirst = newestFirst,
             filter = SearchFilter(isFavorite = BoolFilter(eq = true)),
         )
         return api.searchAssets(body = body).toPage()
@@ -146,7 +150,10 @@ class ImmichRepository(
     suspend fun allAssets(
         cursor: String? = null,
         pageSize: Int = PAGE_SIZE,
-    ): AssetPage = api.searchAssets(body = searchBody(cursor, pageSize)).toPage()
+        newestFirst: Boolean = true,
+    ): AssetPage = api.searchAssets(
+        body = searchBody(cursor, pageSize, newestFirst = newestFirst),
+    ).toPage()
 
     suspend fun asset(assetId: String): PickerAsset? =
         runCatching { api.getAssetInfo(assetId).toPickerAsset() }
@@ -191,6 +198,7 @@ class ImmichRepository(
     private fun searchBody(
         cursor: String?,
         pageSize: Int,
+        newestFirst: Boolean = true,
         filter: SearchFilter? = null,
     ): MetadataSearchDto = MetadataSearchDto(
         size = pageSize,
@@ -199,9 +207,12 @@ class ImmichRepository(
         withExif = true,
         withPeople = false,
         withStacked = false,
+        // Ordering is pushed to the server so that cursor paging walks the same
+        // direction as the display order. Sorting only the client side would make
+        // page 2 sort relative to page 1, producing interleaved results.
         orderBy = SearchOrder(
             field = SearchOrderFieldValues.FILECREATEDAT,
-            direction = "desc",
+            direction = if (newestFirst) "desc" else "asc",
         ),
         filter = filter,
     )
