@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive launcher icon.
+
+    Foreground is the PNG generated from immich-provider.png, pre-inset so the artwork sits
+    inside the 72dp safe-zone circle on a 108dp canvas. Background is white rather than
+    Immich blue, because the flower's lower-left petal is itself blue (#1E83F7) and
+    disappeared against a blue background.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
