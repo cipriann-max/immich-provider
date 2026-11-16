@@ -40,7 +40,12 @@ opens **newest first**, in a two-column grid, with album navigation.
 | Screen | Purpose |
 |---|---|
 | Settings | Server URL, credentials, connection test, cache size, clear cache, sign out |
-| Picker | Tabbed **Timeline** and **Albums**, two-column grid, multi-select, sort toggle |
+| Picker | Tabbed **Timeline** and **Albums**, two-column grid, multi-select, sort toggle, cog to Settings |
+
+The picker's top bar has a **cog** on the right, next to the sort toggle, that opens
+Settings. It is present in every picker state — including the "not signed in" prompt and
+DocumentsUI browsing mode — because Settings is the only place a rejected credential can be
+fixed without leaving the app.
 
 Timeline and album contents are cursor-paged 120 at a time, so a 60k-photo library opens as
 fast as a small one.

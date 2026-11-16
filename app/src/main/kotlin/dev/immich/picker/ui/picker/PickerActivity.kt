@@ -111,12 +111,8 @@ class PickerActivity : ComponentActivity() {
                         onConfirm = ::deliverResult,
                         onLoadMore = viewModel::loadMore,
                         onRetry = viewModel::refreshCurrent,
-                        onLogin = {
-                            startActivity(
-                                Intent(this, MainActivity::class.java)
-                                    .putExtra(MainActivity.EXTRA_OPEN_SETTINGS, true),
-                            )
-                        },
+                        onLogin = ::openSettings,
+                        onOpenSettings = ::openSettings,
                     )
                 }
             }
@@ -162,6 +158,21 @@ class PickerActivity : ComponentActivity() {
 
         setResult(Activity.RESULT_OK, result)
         finish()
+    }
+
+    /**
+     * Opens the app's Settings screen.
+     *
+     * Used by both the cog in the top bar and the "sign in" prompt, so there is one place
+     * that knows how settings are launched. `EXTRA_OPEN_SETTINGS` is what makes
+     * [MainActivity] clear any stale auth notification, since the user is about to look at
+     * exactly that problem.
+     */
+    private fun openSettings() {
+        startActivity(
+            Intent(this, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_OPEN_SETTINGS, true),
+        )
     }
 
     private fun contentUriFor(asset: PickerAsset): Uri =

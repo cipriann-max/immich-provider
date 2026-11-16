@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
@@ -101,6 +102,12 @@ fun PickerScreen(
     onLoadMore: () -> Unit,
     onRetry: () -> Unit,
     onLogin: () -> Unit,
+    /**
+     * Opens the app's Settings screen (server URL, credentials, cache). Available from
+     * every state, including the login prompt and browsing mode, because it is the only
+     * place a broken credential can be fixed.
+     */
+    onOpenSettings: () -> Unit,
 ) {
     val showingAlbums = state.location == PickerLocation.Albums
     val canGoBack = state.location is PickerLocation.Album
@@ -146,6 +153,12 @@ fun PickerScreen(
                                     contentDescription = "Sort: ${state.sort.label}",
                                 )
                             }
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = "Settings",
+                            )
                         }
                     },
                 )

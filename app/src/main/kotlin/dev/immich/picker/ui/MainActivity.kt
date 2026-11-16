@@ -6,7 +6,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +24,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Deliberately NOT enableEdgeToEdge(), for the same reason as PickerActivity:
+        // Scaffold's TopAppBar does not apply statusBarsPadding() here, so drawing under
+        // the status bar hid the title behind the clock and notification icons. Letting
+        // the system own the insets keeps the header readable in gesture and 3-button
+        // navigation alike.
 
         ImmichService.initialize(this)
         PickerNotifications.ensureChannels(this)
