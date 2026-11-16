@@ -35,6 +35,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
+      # sdkmanager prints "The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android
+      # CLI instead." That warning is benign and expected here: the tool still works, and
+      # the `android` replacement is not reliably present (setup-android's own internals
+      # still call sdkmanager, and the `android` binary is absent from several
+      # cmdline-tools versions). Keeping the warning is cheaper than depending on a binary
+      # that may not exist on the runner.
       - name: Install required SDK platforms
         run: |
           sdkmanager --install "platforms;android-36" "build-tools;36.0.0"

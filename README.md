@@ -206,6 +206,16 @@ package, so a `v3` pin fails the job with `Failed to find package 'tools'` befor
 runs. Everything `tools` used to provide now ships in the command line tools that `v4`
 installs.
 
+The `Install required SDK platforms` step still calls `sdkmanager`, so the log contains
+`WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android CLI instead.`
+That is expected and harmless. The stated replacement is the `android` binary's
+`android sdk install` subcommand, but it is not reliably available yet: `android` is
+missing from several `cmdline-tools` releases (including the 10.0 on the author's machine)
+and `setup-android` itself still invokes `sdkmanager` internally, so the warning cannot be
+removed without adding a dependency on a binary that may not exist on the runner. Note the
+package-path syntax differs — `sdkmanager` takes `platforms;android-36`, whereas
+`android sdk install` takes `platforms/android-36`.
+
 Add these four repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | How to produce it |
