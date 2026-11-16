@@ -79,7 +79,7 @@ class PickerActivity : ComponentActivity() {
         // Only a real picker has a caller to satisfy, so an unsatisfiable request is
         // only reported when there is one.
         viewModel.setMimeFilter(if (mode == Mode.PICK) requestedMimeTypes() else emptyList())
-        viewModel.start()
+        // First sync happens in onResume, which always runs after onCreate.
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -121,10 +121,17 @@ class PickerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Returning from the login screen should repopulate the grid without a restart.
-        if (ImmichService.isLoggedIn() && viewModel.state.value.needsLogin) {
-            viewModel.start()
-        }
+        // Always resync, not only when the login prompt happens to be showing.
+        //
+        // The old condition (`isLoggedIn && needsLogin`) could only ever *enter* the login
+        // state, never leave it: after signing in and pressing back, the grid refreshed
+        // while the screen kept showing "Not signed in to Immich". Resyncing on every
+        // resume also handles signing out, switching account, and a session that was
+        // invalidated while Settings was open.
+        //
+        // onResume runs during onCreate too, so this replaces the explicit start() call
+        // there — one code path, one set of rules.
+        viewModel.syncWithCredentials()
     }
 
     // ------------------------------------------------------------------ result

@@ -69,7 +69,19 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
             PickerNotifications.cancelAll(this)
+            // Re-entered from the picker's cog or a notification: the stored credential
+            // may have changed elsewhere (provider auth failure, another activity), so
+            // re-read it rather than trusting the state from the first launch.
+            viewModel.reloadFromStorage()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Settings is the screen where credentials are fixed, so it must never present a
+        // stale picture of them. A `401` handled in the provider marks the credential
+        // invalid in ImmichService; without this, the screen would still show "Connected".
+        viewModel.reloadFromStorage()
     }
 
     /**

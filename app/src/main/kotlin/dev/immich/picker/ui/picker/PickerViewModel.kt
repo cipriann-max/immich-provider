@@ -94,16 +94,57 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
     private var loadJob: Job? = null
     private var albumLoadJob: Job? = null
 
+    /**
+     * Credential generation the current content was loaded under.
+     *
+     * [ImmichService.currentGeneration] changes on every credential change (sign-in,
+     * sign-out, a different account or key). Comparing against it is how this screen
+     * notices that what it is showing belongs to a credential that no longer exists.
+     */
+    private var loadedGeneration: Long = -1
+
     /** Set by the activity from the incoming Intent; caps how many items may be picked. */
     fun configure(maxSelection: Int) {
         _state.update { it.copy(selection = it.selection.copy(max = maxSelection)) }
     }
 
     fun start() {
+        syncWithCredentials()
+    }
+
+    /**
+     * Re-derives everything that depends on the stored credential.
+     *
+     * `needsLogin` is derived state, not a latch. Previously it was set when the session
+     * was missing and never cleared, so after signing in from the cog and pressing back the
+     * grid was refreshed underneath while the screen kept rendering the "not signed in"
+     * prompt. Recomputing on every resume fixes that, and also covers the reverse case:
+     * signing out or switching account must discard the previous account's assets instead
+     * of leaving them on screen.
+     */
+    fun syncWithCredentials() {
+        val generation = ImmichService.currentGeneration()
+
         if (!ImmichService.isLoggedIn()) {
-            _state.update { it.copy(needsLogin = true) }
+            loadedGeneration = generation
+            _state.update { current ->
+                current.copy(
+                    needsLogin = true,
+                    grid = GridState(),
+                    albums = emptyList(),
+                    albumsError = null,
+                    selection = current.selection.copy(selected = emptyMap()),
+                )
+            }
             return
         }
+
+        val credentialsChanged = generation != loadedGeneration
+        val showingLoginPrompt = _state.value.needsLogin
+        if (!credentialsChanged && !showingLoginPrompt) return
+
+        loadedGeneration = generation
+        _state.update { it.copy(needsLogin = false) }
         refreshCurrent()
     }
 

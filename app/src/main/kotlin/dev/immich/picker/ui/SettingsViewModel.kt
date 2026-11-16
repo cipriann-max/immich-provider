@@ -51,7 +51,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         ImmichService.initialize(app)
-        refreshFromStorage()
+        reloadFromStorage()
         refreshCacheSummary()
         if (service.isLoggedIn()) {
             verifyExistingSession()
@@ -406,17 +406,36 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(cacheSummary = summary) }
     }
 
-    private fun refreshFromStorage() {
+    /**
+     * Re-reads stored credentials into the UI state.
+     *
+     * Public because the screen refreshes on resume: the provider can mark a credential
+     * invalid at any moment, and showing "Connected" for a session that has since died is
+     * exactly the stale-state problem this removes.
+     */
+    fun reloadFromStorage() {
         val credentials = service.credentialStore.current()
         val options = service.credentialStore.options()
+        val loggedIn = service.isLoggedIn()
         _state.update {
             it.copy(
                 serverUrl = credentials?.serverUrl.orEmpty(),
                 email = credentials?.userEmail.orEmpty(),
                 authMode = credentials?.authMode ?: AuthMode.PASSWORD,
-                loggedIn = service.isLoggedIn(),
+                loggedIn = loggedIn,
                 insecureTls = options.allowInsecureTls,
                 customCaPem = options.customCaPem?.decodeToString().orEmpty(),
+                // A dead session must not keep showing a stale "Connected" card carrying
+                // the previous account's name and email.
+                connection = if (loggedIn) it.connection else null,
+                // ...and once it is dead, say so instead of leaving a green tick.
+                error = if (loggedIn) {
+                    it.error
+                } else if (credentials != null) {
+                    "Session expired. Sign in again, or switch to an API key."
+                } else {
+                    it.error
+                },
             )
         }
     }
