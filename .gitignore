@@ -4,10 +4,15 @@
 .gradle/
 build/
 app/build/
+app/release/
 captures/
 .externalNativeBuild/
 .cxx/
 local.properties
+
+# The Gradle wrapper jar is source, not build output: keep it even though
+# it matches the *.jar-style artifact rules below.
+!gradle/wrapper/gradle-wrapper.jar
 
 # ---------------------------------------------------------------------------
 # Kotlin / IDE
@@ -25,7 +30,10 @@ out/
 keystore.properties
 *.jks
 *.keystore
-!gradle/wrapper/gradle-wrapper.jar
+*.p12
+*.pfx
+*.pem
+*.key
 
 # ---------------------------------------------------------------------------
 # Generated / derived files
@@ -46,12 +54,20 @@ lint-results*.html
 *.secret
 
 # ---------------------------------------------------------------------------
-# OS noise
+# Local tooling (tools/ holds scratch mock servers and helper pages)
+# ---------------------------------------------------------------------------
+node_modules/
+package-lock.json
+
+# ---------------------------------------------------------------------------
+# OS noise and merge leftovers
 # ---------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 *~
 *.swp
+*.orig
+*.rej
 
 # ---------------------------------------------------------------------------
 # Python tooling cache (tools/openapi)

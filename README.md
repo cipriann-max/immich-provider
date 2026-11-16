@@ -351,6 +351,21 @@ app/src/main/kotlin/dev/immich/picker/
     └── immich-v3.4.1.json          Vendored spec
 ```
 
+### Icon assets
+
+[`immich-provider.png`](immich-provider.png) in the project root is the **source** artwork
+(1024×1024). It is not used by the build directly; it is the master file the launcher
+resources were generated from:
+
+| Destination | Size | Purpose |
+|---|---|---|
+| `res/drawable-*/ic_launcher_foreground.png` | 108–432 px | Adaptive-icon foreground, pre-inset for the safe zone |
+| `res/mipmap-*/ic_launcher.png` | 48–192 px | Legacy square icon (API < 26) |
+| `res/drawable-*/ic_stat_immich.png` | 24–96 px | Status-bar notification icon |
+
+Keep the source PNG so the icons can be regenerated at other densities or with a changed
+inset, rather than upscaling a small derivative.
+
 ### Why the DocumentsProvider has no root
 
 `queryRoots()` returns nothing on purpose. A root makes DocumentsUI render its **own** browser
