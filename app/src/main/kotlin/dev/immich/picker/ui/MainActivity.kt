@@ -58,7 +58,6 @@ class MainActivity : ComponentActivity() {
                         },
                         onLogout = { viewModel.logout() },
                         onClearCache = { viewModel.clearCache() },
-                        onShowLauncherIconChange = viewModel::setShowLauncherIcon,
                     )
                 }
             }

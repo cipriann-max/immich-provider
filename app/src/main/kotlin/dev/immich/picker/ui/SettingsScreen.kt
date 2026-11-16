@@ -65,7 +65,6 @@ fun SettingsScreen(
     onTest: () -> Unit,
     onLogout: () -> Unit,
     onClearCache: () -> Unit,
-    onShowLauncherIconChange: (Boolean) -> Unit,
 ) {
     var password by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
@@ -272,34 +271,6 @@ fun SettingsScreen(
             }
 
             HorizontalDivider()
-
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Launcher icon", style = MaterialTheme.typography.titleMedium)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Show launcher icon", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                if (state.showLauncherIcon) {
-                                    "Tap the icon in your app drawer to open these settings."
-                                } else {
-                                    "Hidden. Open Settings from the cog in the picker — " +
-                                        "Immich File Picker still appears in every file chooser."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = state.showLauncherIcon,
-                            onCheckedChange = onShowLauncherIconChange,
-                        )
-                    }
-                }
-            }
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
