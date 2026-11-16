@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.immich.picker.BuildConfig
+import dev.immich.picker.data.AppPreferences
 import dev.immich.picker.data.AuthMode
 import dev.immich.picker.data.ConnectionInfo
 import dev.immich.picker.data.ConnectionOptions
 import dev.immich.picker.data.ImmichCredentials
 import dev.immich.picker.data.ImmichRepository
 import dev.immich.picker.data.ImmichService
+import dev.immich.picker.data.LauncherIcon
 import dev.immich.picker.data.VersionAssessment
 import dev.immich.picker.data.VersionGate
 import dev.immich.picker.data.loginWithPassword
@@ -40,17 +42,49 @@ data class UiState(
     val insecureTls: Boolean = false,
     val customCaPem: String = "",
     val cacheSummary: String = "",
+    /** Whether the launcher icon is shown; see [SettingsViewModel.setShowLauncherIcon]. */
+    val showLauncherIcon: Boolean = true,
 )
 
 class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val service: ImmichService get() = ImmichService
 
+    private val preferences = AppPreferences(app)
+
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    // ------------------------------------------------------------------ launcher icon
+
+    /**
+     * Shows or hides the launcher icon.
+     *
+     * Hiding it is not a cosmetic choice: with the icon gone, the cog inside the picker
+     * becomes the only way into Settings. That is still enough, because the picker is
+     * reachable from every app that opens a file chooser, and `MainActivity` stays enabled.
+     */
+    fun setShowLauncherIcon(visible: Boolean) {
+        preferences.showLauncherIcon = visible
+        LauncherIcon.apply(getApplication(), visible)
+        _state.update {
+            it.copy(
+                showLauncherIcon = visible,
+                info = if (visible) {
+                    "Launcher icon shown."
+                } else {
+                    "Launcher icon hidden. Open Settings from the cog in the picker."
+                },
+            )
+        }
+    }
+
     init {
         ImmichService.initialize(app)
+        // Re-assert the icon state on every start. An app update can reset component
+        // enabled flags, so the stored preference is the source of truth, not the
+        // package manager's current value.
+        LauncherIcon.sync(app, preferences)
         refreshFromStorage()
         refreshCacheSummary()
         if (service.isLoggedIn()) {
@@ -417,6 +451,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 loggedIn = service.isLoggedIn(),
                 insecureTls = options.allowInsecureTls,
                 customCaPem = options.customCaPem?.decodeToString().orEmpty(),
+                showLauncherIcon = preferences.showLauncherIcon,
             )
         }
     }
