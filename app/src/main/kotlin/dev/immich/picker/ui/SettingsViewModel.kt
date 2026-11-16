@@ -81,10 +81,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         ImmichService.initialize(app)
-        // Re-assert the icon state on every start. An app update can reset component
-        // enabled flags, so the stored preference is the source of truth, not the
-        // package manager's current value.
-        LauncherIcon.sync(app, preferences)
+        // The icon state is already re-asserted in ImmichPickerApp.onCreate for every
+        // process start, so nothing to do here beyond reading the stored value.
         refreshFromStorage()
         refreshCacheSummary()
         if (service.isLoggedIn()) {

@@ -39,8 +39,36 @@ opens **newest first**, in a two-column grid, with album navigation.
 
 | Screen | Purpose |
 |---|---|
-| Settings | Server URL, credentials, connection test, cache size, clear cache, sign out |
+| Settings | Server URL, credentials, connection test, launcher-icon toggle, cache size, clear cache, sign out |
 | Picker | Tabbed **Timeline** and **Albums**, two-column grid, multi-select, sort toggle, cog to Settings |
+
+### Hiding the launcher icon
+
+Settings has a **Show launcher icon** switch. With it off, the app disappears from the app
+drawer and Immich is reachable only through the cog inside the picker, which is still
+available in every app's file chooser. Nothing else changes: the document provider, the
+picker's MIME registrations and the stored credentials all keep working.
+
+This is implemented the only way Android supports: the `LAUNCHER` intent filter lives on an
+[`activity-alias`](app/src/main/AndroidManifest.xml) rather than on `MainActivity`, and the
+switch calls `PackageManager.setComponentEnabledSetting` on that alias. `MainActivity`
+itself stays enabled, so the picker's cog can still open Settings — disabling the activity
+directly would have removed the only remaining route in.
+
+Two caveats, both inherent to the platform rather than to this app:
+
+- **Some launchers cache their app list.** The package manager reports the change
+  immediately (verified with `cmd package query-activities`), but a third-party launcher
+  may keep showing a stale entry until it rebuilds its list — restarting the launcher or
+  the device usually does it. Tapping such a stale entry opens the app's **App Info**
+  screen instead of the app, which is how Android handles a shortcut whose component is
+  gone.
+- **App Info and the task switcher still show the app.** Only the drawer entry is
+  controlled by the alias; those surfaces list installed packages, not launcher
+  components.
+
+If you hide the icon and later want it back, open the picker from any app's file chooser
+and tap the cog.
 
 The picker's top bar has a **cog** on the right, next to the sort toggle, that opens
 Settings. It is present in every picker state — including the "not signed in" prompt and

@@ -18,41 +18,26 @@
         android:theme="@style/Theme.ImmichPicker">
 
         <!--
-            Settings screen. Does NOT carry the LAUNCHER filter itself.
+            Settings screen and launcher entry point.
 
-            The launcher entry lives on the activity-alias below so it can be disabled at
-            runtime while this activity stays reachable. Disabling MainActivity directly
-            would also break the cog inside the picker, which is the only remaining route
-            into Settings once the icon is hidden.
+            The LAUNCHER filter lives here, directly on the activity. An activity-alias was
+            tried so the icon could be toggled at runtime, but Android 10+ does not honour
+            component disabling reliably: launchers keep a persisted entry that survives
+            reboots and falls back to App Info when tapped. Hiding the icon is therefore not
+            something a shipped APK can promise, so the feature was removed rather than
+            shipped half-working. Use a separate build without the filter if a drawer-less
+            APK is ever needed.
         -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.ImmichPicker" />
-
-        <!--
-            The launcher icon, as a toggleable alias.
-
-            Settings -> "Show launcher icon" enables or disables this component through
-            PackageManager.setComponentEnabledSetting, which is the only supported way to
-            hide an app icon without uninstalling. The alias targets MainActivity, so the
-            app still has a working entry point even when the icon is hidden: the cog in
-            the picker.
-        -->
-        <activity-alias
-            android:name=".ui.LauncherAlias"
-            android:enabled="true"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:icon="@mipmap/ic_launcher"
-            android:roundIcon="@mipmap/ic_launcher"
-            android:targetActivity=".ui.MainActivity">
+            android:theme="@style/Theme.ImmichPicker">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity-alias>
+        </activity>
 
         <!--
             The one and only picker.
