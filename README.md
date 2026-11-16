@@ -231,6 +231,23 @@ publishing an unsigned APK.
 Note that GitHub secrets are write-only: once uploaded, the value cannot be read back. That
 is why the keystore must also exist locally — the Actions secret is a copy, not the backup.
 
+The `Validate keystore` step exists because a mangled secret surfaces as
+`DerInputStream.getLength(): lengthTag=N, too big` from deep inside
+`PackageAndroidArtifact`, which points at nothing actionable. The step prints the decoded
+file's size, SHA-256 and first four bytes, then fails early with a specific message if the
+bytes are not a keystore (`30 82 …` for PKCS12, `fe ed fe ed` for JKS) or if `keytool`
+cannot open it with the supplied password and alias.
+
+To confirm an upload is correct, compare fingerprints:
+
+```bash
+sha256sum ~/keystores/immich-picker-release.jks     # local
+# compare with "Keystore sha256" printed by the Validate keystore step
+```
+
+Common causes of the mismatch are a newline or a `wc -c` line captured into the secret, a
+line-wrapped file copied by hand, or base64 decoded before upload as well as after.
+
 ---
 
 ## Setup
