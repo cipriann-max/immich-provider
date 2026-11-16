@@ -16,8 +16,25 @@ data class ApiRequest(
  */
 sealed class ApiException(message: String, cause: Throwable? = null) : Exception(message, cause) {
 
-    /** Server answered 401/403. The token or API key is no longer valid. */
+    /**
+     * Server answered 401: the token or API key is unknown, deleted or expired.
+     *
+     * This is the only status that means "sign in again". Immich deletes a session
+     * after 90 days without use, so a stored token really can become invalid.
+     */
     class Unauthorized(message: String) : ApiException(message)
+
+    /**
+     * Server answered 403: the credential is valid but lacks a permission.
+     *
+     * Deliberately *not* an [Unauthorized]. Conflating the two made an API key that
+     * was missing one permission look like an expired session, which cannot be fixed
+     * by signing in again — it needs the key's permissions changed.
+     */
+    class Forbidden(val permission: String?) : ApiException(
+        permission?.let { "This credential is missing the Immich permission: $it" }
+            ?: "Immich refused the request: not permitted",
+    )
 
     /** Server answered with a non-2xx status that is not auth related. */
     class Http(
@@ -45,4 +62,40 @@ sealed class ApiException(message: String, cause: Throwable? = null) : Exception
 
     /** The call was cancelled by the caller (DocumentsUI closing the picker). */
     class Cancelled : ApiException("Cancelled")
+}
+
+/**
+ * Turns an HTTP status into the right [ApiException], kept out of the transport so the
+ * distinction between "sign in again" and "this credential lacks a permission" is
+ * unit-testable rather than only observable against a live server.
+ */
+object ApiFailures {
+
+    /** Matches an Immich permission string such as `asset.view` inside a message. */
+    private val PERMISSION = Regex("""\b([a-z][A-Za-z]*\.[a-z][A-Za-z]*)\b""")
+
+    fun forStatus(
+        method: String,
+        path: String,
+        code: Int,
+        serverMessage: String?,
+    ): ApiException = when (code) {
+        // 401: the token or key is unknown, revoked or expired. Signing in fixes it.
+        401 -> ApiException.Unauthorized(
+            serverMessage ?: "Not authorised (HTTP 401)",
+        )
+        // 403: the credential is fine, the permission is not. Signing in does not fix it.
+        403 -> ApiException.Forbidden(permissionFrom(serverMessage))
+        else -> ApiException.Http(code, "$method $path", serverMessage)
+    }
+
+    /**
+     * Immich answers a permission failure with `Missing required permission: asset.view`,
+     * so the missing permission can be named instead of guessed at.
+     */
+    fun permissionFrom(serverMessage: String?): String? {
+        val message = serverMessage ?: return null
+        if (!message.contains("permission", ignoreCase = true)) return null
+        return PERMISSION.find(message)?.groupValues?.get(1)
+    }
 }

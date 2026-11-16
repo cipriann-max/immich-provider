@@ -161,7 +161,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                     trustedCaPem = options.customCaPem,
                 )
                 val repository = ImmichRepository(authedClient, placeholderCredentials(baseUrl, secret, isApiKey, versionString))
-                val (name, email) = withContext(Dispatchers.IO) { repository.me() }
+                // Validates without requiring `user.read`, so a minimal API key that can
+                // browse the library is accepted instead of rejected as unauthorised.
+                val (name, email) = withContext(Dispatchers.IO) { repository.validateAccess() }
 
                 // 4. Persist.
                 val label = listOfNotNull(name?.takeIf { it.isNotBlank() }, email).joinToString(" · ")
@@ -208,6 +210,20 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: ApiException.Unauthorized) {
                 _state.update {
                     it.copy(loggingIn = false, error = "Sign-in rejected: ${e.message}")
+                }
+            } catch (e: ApiException.Forbidden) {
+                // A valid credential that lacks a permission. Signing in again would not
+                // help, so say what to change instead.
+                _state.update {
+                    it.copy(
+                        loggingIn = false,
+                        error = if (isApiKey) {
+                            "This API key is missing a permission the app needs. " +
+                                "Grant asset.read, asset.view, asset.download and album.read. (${e.message})"
+                        } else {
+                            "This account is not permitted to browse the library: ${e.message}"
+                        },
+                    )
                 }
             } catch (e: ApiException.Http) {
                 _state.update {
@@ -301,6 +317,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update {
                     it.copy(testing = false, error = "Credential rejected: ${e.message}")
                 }
+            } catch (e: ApiException.Forbidden) {
+                _state.update { it.copy(testing = false, error = e.message) }
             } catch (e: ApiException.Network) {
                 _state.update {
                     it.copy(testing = false, error = "Cannot reach the server: ${e.message}")
@@ -325,7 +343,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 val assessment = VersionGate.assess(version)
                 service.updateStoredVersion(versionString)
-                val (name, email) = withContext(Dispatchers.IO) { session.repository.me() }
+                // Same permission-tolerant validation as login, so a minimal API key is
+                // not mistaken for an expired session on every app start.
+                val (name, email) = withContext(Dispatchers.IO) { session.repository.validateAccess() }
                 _state.update {
                     it.copy(
                         loggedIn = true,
@@ -342,8 +362,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: ApiException.Unauthorized) {
                 service.onAuthFailure(e.message)
                 _state.update {
-                    it.copy(loggedIn = false, error = "Session expired. Sign in again.")
+                    it.copy(
+                        loggedIn = false,
+                        error = "Session expired. Sign in again, or switch to an API key, " +
+                            "which does not expire.",
+                    )
                 }
+            } catch (e: ApiException.Forbidden) {
+                // The stored credential is valid; only the profile call is unreadable.
+                // Keep the session usable and say so rather than demanding a re-login.
+                _state.update { it.copy(loggedIn = true, error = e.message) }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(error = "Could not reach Immich: ${e.message}")

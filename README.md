@@ -118,12 +118,15 @@ on a home network are plain HTTP. `https://` and a path prefix both work.
 
 ### 2. Credentials
 
-Two options.
+Two options. Both end up as a single encrypted `secret`, but they are not the same kind of
+value, which matters for how long sign-in lasts.
 
-**Email and password** calls `POST /api/auth/login` and stores the returned access token.
-The password itself is never stored.
+**Email and password** calls `POST /api/auth/login` once and stores the **access token the
+server returns**. Your password is used for that call and then discarded — it is never
+written to disk. The stored token is the session itself, not a renewable JWT.
 
-**API key** is sent as the `x-api-key` header. Create one in Immich under
+**API key** has nothing to exchange: the key *is* the credential. It is stored as `secret`
+and sent on every request as the `x-api-key` header. Create one in Immich under
 **Account Settings → API Keys**. The key needs exactly these permissions:
 
 | Permission | Needed for |
@@ -136,10 +139,43 @@ The password itself is never stored.
 Nothing else is required. In particular the app never requests upload, delete or edit
 permissions, and the Immich server would reject those calls anyway if it tried.
 
+`user.read` is **not** needed. The app validates a credential by reading your profile name
+and email, but if that call is refused it falls back to a one-item library search, so a key
+with exactly the permissions above is accepted. Your name and email simply stay unknown.
+
+### Which credential lasts longer
+
+| | Password login | API key |
+|---|---|---|
+| Expiry set by the server | None | None |
+| Deleted when unused | **Yes, after 90 days** | No |
+| Ends early if the server's database is reset or restored | Yes | Yes |
+| Ends early if the session or key is revoked | Yes | Yes |
+| Can be renewed without you | No | n/a |
+
+The server-side detail: a password login creates a session row with no `expiresAt`, so it
+does not time out on a deadline. Immich's background `SessionCleanup` job deletes sessions
+whose `updatedAt` is more than **90 days** old, and every authenticated request refreshes
+that timestamp (at most once an hour). So a password session stays valid indefinitely as
+long as the picker is used at least once every 90 days.
+
+An API key is stored in a table with no expiry column and is not touched by that cleanup, so
+it survives any amount of idleness. **If you want to sign in once and never think about it
+again, use an API key.**
+
+The app cannot silently re-authenticate after a `401`. Recovering a password session would
+require keeping the password, which this app deliberately does not do. When a credential is
+rejected, the app says so and asks for a new sign-in or a switch to an API key.
+
 ### 3. Verify
 
-"Test connection" reads `/api/server/version` and `/api/users/me` and shows the server
-version, your name and email. Nothing is saved until validation succeeds.
+"Test connection" reads `/api/server/version` and then validates the credential. That shows
+the server version and, when readable, your name and email. Nothing is saved until
+validation succeeds.
+
+A `401` means the credential is gone and a new sign-in is required. A `403` is different: the
+credential is valid but is missing a permission, so the app names the permission Immich
+reports rather than claiming the session expired.
 
 ### 4. Self-signed certificates
 
@@ -203,7 +239,8 @@ receiving app sees the real name and extension; files with no original name get
 | Situation | What happens |
 |---|---|
 | Server unreachable | In-app error, notification, retry with backoff |
-| Token or API key rejected | Credential marked invalid, notification opens Settings, picker asks you to sign in |
+| Token rejected (HTTP 401) | Credential marked invalid, notification opens Settings, picker asks you to sign in again or use an API key |
+| Permission missing (HTTP 403) | Credential kept; the missing permission is named and a re-login is **not** requested |
 | Server returns unexpected JSON | Error names the endpoint and server version; notification explains a version mismatch |
 | Request cancelled | Treated as a no-op, as DocumentsUI expects |
 | Server slow | 45 s network timeout per call; the UI shows a spinner and stays responsive |
@@ -263,7 +300,7 @@ reached from real user actions — nothing here is speculative.
 |---|---|---|
 | `GET` | `/api/server/version` | Login, and on every app start (version gate) |
 | `POST` | `/api/auth/login` | Signing in with email and password |
-| `GET` | `/api/users/me` | Validating the credential; reading your name and email |
+| `GET` | `/api/users/me` | Validating the credential and reading your name and email; falls back to `search/metadata` when the credential lacks `user.read` |
 | `GET` | `/api/albums` | Opening the Albums tab |
 | `POST` | `/api/search/metadata` | Paging the Timeline, an album, or Favorites |
 | `GET` | `/api/assets/{id}` | Resolving metadata for a document URI the picker handed out |
@@ -343,7 +380,7 @@ app/src/main/kotlin/dev/immich/picker/
 │   └── ApiJson.kt          Json config (ignoreUnknownKeys, explicitNulls=false)
 ├── net/
 │   ├── ImmichApiClient.kt  OkHttp transport, retry/backoff, TLS options, downloads
-│   └── ApiTypes.kt         ApiRequest + ApiException hierarchy
+│   └── ApiTypes.kt         ApiRequest, ApiException hierarchy, status→error mapping
 ├── data/
 │   ├── Credentials.kt      EncryptedSharedPreferences + Keystore
 │   ├── ImmichRepository.kt Read-only library queries, paging, mapping
@@ -372,6 +409,7 @@ app/src/main/kotlin/dev/immich/picker/
     └── immich-v3.4.1.json          Vendored spec
 
 app/src/test/kotlin/dev/immich/picker/
+├── net/ApiFailuresTest.kt      Status mapping: 401 vs 403, permission naming
 └── util/MimeFiltersTest.kt     Caller MIME parsing and matching rules
 ```
 

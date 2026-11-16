@@ -46,6 +46,29 @@ class ImmichRepository(
         return user.name to user.email
     }
 
+    /**
+     * Validates the stored credential without requiring `user.read`.
+     *
+     * `GET /users/me` needs `user.read`, which an API key does **not** need in order to
+     * browse a library. Validating through it therefore rejected perfectly usable
+     * minimal-permission keys. Here a `403` on the profile call falls back to a real
+     * library call, so a key with `asset.read` is accepted while the account name is
+     * simply left unknown. Anything else, including `401`, still fails.
+     *
+     * @return `(name, email)`, either of which may be null when the profile is unreadable.
+     */
+    suspend fun validateAccess(): Pair<String?, String?> {
+        try {
+            return me()
+        } catch (e: ApiException.Forbidden) {
+            Log.i(TAG, "profile unreadable with this credential (${e.message}); checking library access")
+        }
+
+        // One-item search proves `asset.read` without pulling a page of results.
+        api.searchAssets(body = searchBody(cursor = null, pageSize = 1))
+        return null to null
+    }
+
     // -------------------------------------------------------------------- albums
 
     /** All albums visible to the user, newest activity first. */

@@ -186,7 +186,22 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
                 _state.update {
                     it.copy(
                         needsLogin = true,
-                        grid = GridState(loading = false, error = "Session expired"),
+                        grid = GridState(
+                            loading = false,
+                            error = "Session expired. Sign in again, or use an API key.",
+                        ),
+                    )
+                }
+            } catch (e: ApiException.Forbidden) {
+                // Valid credential, insufficient permission. Do NOT mark the session as
+                // failed: signing in again would change nothing.
+                _state.update {
+                    it.copy(
+                        grid = GridState(
+                            loading = false,
+                            error = "This credential is not allowed to browse the library. " +
+                                "Check the API key permissions. (${e.message})",
+                        ),
                     )
                 }
             } catch (e: Exception) {

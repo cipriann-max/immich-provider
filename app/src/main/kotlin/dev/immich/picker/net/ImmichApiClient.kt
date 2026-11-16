@@ -212,12 +212,13 @@ class ImmichApiClient(
             }
         }.getOrNull()
 
-        throw when (response.code) {
-            401, 403 -> ApiException.Unauthorized(
-                serverMessage ?: "Not authorised (HTTP ${response.code})",
-            )
-            else -> ApiException.Http(response.code, "${request.method} ${request.path}", serverMessage)
-        }
+        // 401 and 403 are deliberately distinct: only 401 means "sign in again".
+        throw ApiFailures.forStatus(
+            method = request.method,
+            path = request.path,
+            code = response.code,
+            serverMessage = serverMessage,
+        )
     }
 
     private fun <T> decode(request: ApiRequest, bytes: ByteArray, serializer: KSerializer<T>): T {

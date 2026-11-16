@@ -149,7 +149,14 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         } catch (e: ApiException.Unauthorized) {
             Log.w(TAG, "openDocument: credential rejected", e)
             service.onAuthFailure(e.message)
-            throw FileNotFoundException("Immich session expired; open Immich Picker to sign in again")
+            throw FileNotFoundException(
+                "Immich session expired; open Immich Picker to sign in again, or use an API key",
+            )
+        } catch (e: ApiException.Forbidden) {
+            // Permission problem, not an expired session: the UI must not be told to
+            // sign in again, because doing so would change nothing.
+            Log.w(TAG, "openDocument: permission denied", e)
+            throw FileNotFoundException("${e.message} — check the API key's permissions")
         } catch (e: ApiException.Cancelled) {
             throw OperationCanceledException()
         } catch (e: CancellationException) {
