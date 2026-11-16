@@ -110,9 +110,15 @@ fun PickerScreen(
     onOpenSettings: () -> Unit,
 ) {
     val showingAlbums = state.location == PickerLocation.Albums
-    val canGoBack = state.location is PickerLocation.Album
+    // Derived from the same rule the back button uses, so the top-bar icon can never
+    // promise an up-navigation that back would not perform (or vice versa).
+    val canGoBack = PickerNavigation.canGoUp(state.location)
     val selectable = !readOnly
-    val selectedTab = if (showingAlbums) PickerTab.ALBUMS else PickerTab.TIMELINE
+    // The album list *and* anything inside an album belong to the Albums tab, so the tab
+    // stays highlighted while browsing an album's contents. Before this, entering an album
+    // flipped the highlight to Timeline, which contradicted the screen's own title.
+    val inAlbumsBranch = state.location is PickerLocation.Album || showingAlbums
+    val selectedTab = if (inAlbumsBranch) PickerTab.ALBUMS else PickerTab.TIMELINE
 
     Scaffold(
         topBar = {
@@ -163,23 +169,28 @@ fun PickerScreen(
                     },
                 )
 
-                if (!canGoBack) {
-                    PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
-                        PickerTab.entries.forEach { tab ->
-                            Tab(
-                                selected = tab == selectedTab,
-                                onClick = {
-                                    when (tab) {
-                                        PickerTab.TIMELINE -> onOpenRecents()
-                                        PickerTab.ALBUMS -> onOpenAlbums()
-                                    }
-                                },
-                                // The icon carries the meaning; the label stays short so
-                                // both tabs fit a narrow phone without truncation.
-                                icon = { Icon(tab.icon, contentDescription = null) },
-                                text = { Text(tab.label) },
-                            )
-                        }
+                // Always visible, including inside an album.
+                //
+                // Hiding the tabs made entering an album feel like a different screen: the
+                // top-level navigation vanished and the only cue was the title. Keeping the
+                // tab row means the album is shown as a *deeper view within the Albums
+                // tab*, which is what it is. The Albums tab stays selected while inside an
+                // album, and tapping either tab is an explicit way back out.
+                PrimaryTabRow(selectedTabIndex = selectedTab.ordinal) {
+                    PickerTab.entries.forEach { tab ->
+                        Tab(
+                            selected = tab == selectedTab,
+                            onClick = {
+                                when (tab) {
+                                    PickerTab.TIMELINE -> onOpenRecents()
+                                    PickerTab.ALBUMS -> onOpenAlbums()
+                                }
+                            },
+                            // The icon carries the meaning; the label stays short so
+                            // both tabs fit a narrow phone without truncation.
+                            icon = { Icon(tab.icon, contentDescription = null) },
+                            text = { Text(tab.label) },
+                        )
                     }
                 }
             }

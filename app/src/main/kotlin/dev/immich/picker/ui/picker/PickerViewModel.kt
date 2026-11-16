@@ -26,6 +26,33 @@ sealed interface PickerLocation {
     data class Album(val album: PickerAlbum) : PickerLocation
 }
 
+/**
+ * The picker's navigation hierarchy, kept separate from the ViewModel so the back rule is
+ * a pure function that can be unit-tested without Android.
+ *
+ * Exactly two levels: the top (Timeline / Albums / Favorites) and one album inside Albums.
+ * Timeline and Albums are siblings, so the album list has **no** parent — leaving it exits
+ * the picker instead of detouring through Timeline.
+ */
+object PickerNavigation {
+
+    /**
+     * Where back should go from [location], or null when back should leave the picker.
+     *
+     * This single function is the whole rule; both the back button and the top-bar icon
+     * derive from it, so they cannot disagree.
+     */
+    fun parentOf(location: PickerLocation): PickerLocation? = when (location) {
+        is PickerLocation.Album -> PickerLocation.Albums
+        PickerLocation.Albums -> null
+        PickerLocation.Recents -> null
+        PickerLocation.Favorites -> null
+    }
+
+    /** True when a level up exists, i.e. back navigates rather than closes. */
+    fun canGoUp(location: PickerLocation): Boolean = parentOf(location) != null
+}
+
 /** Ordering options, chosen by us instead of by DocumentsUI. */
 enum class SortOrder(val label: String) {
     NEWEST_FIRST("Newest first"),
@@ -158,19 +185,22 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Handles a back press.
+     *
+     * Returns true when it was consumed by navigating up a level, false when the caller
+     * should let the activity finish.
+     *
+     * The hierarchy is exactly two levels deep: the top level (Timeline, Albums,
+     * Favorites) and one album below Albums. Timeline and Albums are *siblings*, not
+     * parent and child, so leaving the album list must exit the picker rather than fall
+     * through to Timeline — that detour meant two back presses to leave the album tab and
+     * dropped the user somewhere they had not been.
+     */
     fun back(): Boolean {
-        val current = _state.value.location
-        return when (current) {
-            is PickerLocation.Album -> {
-                open(PickerLocation.Albums)
-                true
-            }
-            PickerLocation.Albums -> {
-                open(PickerLocation.Recents)
-                true
-            }
-            else -> false
-        }
+        val parent = PickerNavigation.parentOf(_state.value.location) ?: return false
+        open(parent)
+        return true
     }
 
     fun refreshCurrent() {
