@@ -17,26 +17,107 @@ val testedImmichVersion = "3.4.1"
 /** Version of the OpenAPI document used by tools/openapi/generate_models.py. */
 val testedImmichFeatureLevel = 2
 
+/**
+ * Signing configuration, resolved from two places so the same build script works on a
+ * developer machine and in CI:
+ *
+ *  1. `keystore.properties` in the project root (gitignored) for local release builds.
+ *  2. Environment variables for CI, where the keystore is restored from a secret onto
+ *     the runner and no properties file exists.
+ *
+ * The environment wins only when it is complete, so a stale local file cannot silently
+ * produce a differently-signed APK in a release pipeline.
+ */
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
     }
 }
-val hasReleaseKeystore = keystoreProperties.getProperty("storeFile")?.let {
-    rootProject.file(it).exists()
-} == true
+
+private fun envOrNull(name: String): String? =
+    System.getenv(name)?.takeIf { it.isNotBlank() }
+
+val envStoreFile = envOrNull("RELEASE_KEYSTORE_FILE")
+val envStorePassword = envOrNull("RELEASE_KEYSTORE_PASSWORD")
+val envKeyAlias = envOrNull("RELEASE_KEY_ALIAS")
+val envKeyPassword = envOrNull("RELEASE_KEY_PASSWORD")
+
+val signingStoreFile = envStoreFile ?: keystoreProperties.getProperty("storeFile")
+val signingStorePassword = envStorePassword ?: keystoreProperties.getProperty("storePassword")
+val signingKeyAlias = envKeyAlias ?: keystoreProperties.getProperty("keyAlias")
+val signingKeyPassword = envKeyPassword ?: keystoreProperties.getProperty("keyPassword")
+
+/** A release APK is signed only when the keystore and every credential are present. */
+val signingKeystoreFile: File? = signingStoreFile
+    ?.let { rootProject.file(it) }
+    ?.takeIf { file ->
+        file.exists() &&
+            !signingStorePassword.isNullOrBlank() &&
+            !signingKeyAlias.isNullOrBlank() &&
+            !signingKeyPassword.isNullOrBlank()
+    }
+
+/** Default version when nothing overrides it. First public release is 1.0.0. */
+val defaultVersionName = "1.0.0"
+
+/**
+ * Version stamped into the APK, overridable from a git tag in CI or from `release.sh`
+ * locally. The name is read from an environment variable or a Gradle property, whichever
+ * the caller used; the code is derived from the name so releases always sort correctly.
+ *
+ * Derivation: `major * 10000 + minor * 100 + patch`, so 1.0.0 -> 10000, 1.2.3 -> 10203.
+ * An explicit RELEASE_VERSION_CODE always wins, for a build that must not move the code.
+ */
+val versionNameOverride = envOrNull("RELEASE_VERSION_NAME")
+    ?: (project.findProperty("releaseVersionName") as String?)?.takeIf { it.isNotBlank() }
+
+val versionCodeOverride = (envOrNull("RELEASE_VERSION_CODE")
+    ?: (project.findProperty("releaseVersionCode") as String?))
+    ?.toIntOrNull()
+    ?: versionNameOverride?.let { name ->
+        val parts = name.substringBefore('-').split('.').mapNotNull { it.toIntOrNull() }
+        if (parts.size >= 3) parts[0] * 10_000 + parts[1] * 100 + parts[2] else null
+    }
 
 android {
+    // Kotlin package for R and BuildConfig. Independent of applicationId below, and kept
+    // as-is so the 200+ source files and generated API models need no churn.
     namespace = "dev.immich.picker"
     compileSdk = 36
 
+    signingConfigs {
+        if (signingKeystoreFile != null) {
+            create("release") {
+                storeFile = signingKeystoreFile
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+                // v1 for API 26 devices, v2/v3 for modern installs.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "dev.immich.picker"
+        /**
+         * The app's public identity. Reverse-DNS of a domain Virtunio Ltd controls, so the
+         * id does not imply affiliation with the Immich project (`immich.dev` belongs to
+         * them, and this app is an independent third-party client).
+         *
+         * Changing this again would make the app a *different* install: no upgrade path,
+         * and stored credentials and caches would not carry over.
+         */
+        applicationId = "com.virtunio.immichpicker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versionCodeOverride ?: run {
+            val parts = defaultVersionName.split('.').mapNotNull { it.toIntOrNull() }
+            parts[0] * 10_000 + parts[1] * 100 + parts[2]
+        }
+        versionName = versionNameOverride ?: defaultVersionName
 
         buildConfigField("String", "TESTED_IMMICH_VERSION", "\"$testedImmichVersion\"")
         buildConfigField("int", "TESTED_IMMICH_FEATURE_LEVEL", testedImmichFeatureLevel.toString())
@@ -53,14 +134,9 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (hasReleaseKeystore) {
-                signingConfig = signingConfigs.create("release") {
-                    storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
-                    storePassword = keystoreProperties.getProperty("storePassword")
-                    keyAlias = keystoreProperties.getProperty("keyAlias")
-                    keyPassword = keystoreProperties.getProperty("keyPassword")
-                }
-            }
+            // Left unset when no keystore is configured, so a contributor without signing
+            // material can still compile. Such an APK is `-unsigned` and not shippable.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

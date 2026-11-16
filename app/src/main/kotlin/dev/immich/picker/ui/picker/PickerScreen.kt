@@ -114,7 +114,7 @@ fun PickerScreen(
                     title = {
                         Text(
                             text = when (val loc = state.location) {
-                                PickerLocation.Recents -> "Immich Picker"
+                                PickerLocation.Recents -> "Immich File Picker"
                                 PickerLocation.Favorites -> "Favorites"
                                 PickerLocation.Albums -> "Albums"
                                 is PickerLocation.Album -> loc.album.name

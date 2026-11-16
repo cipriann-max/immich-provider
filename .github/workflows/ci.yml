@@ -1,0 +1,58 @@
+name: CI
+
+# Validates every push to main and every pull request.
+#
+# Deliberately does NOT sign anything: an unsigned build is enough to prove the project
+# compiles and the tests pass, and it keeps the release secrets out of PR-triggered runs
+# (a fork's PR must never be able to read them).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required SDK platforms
+        run: |
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/

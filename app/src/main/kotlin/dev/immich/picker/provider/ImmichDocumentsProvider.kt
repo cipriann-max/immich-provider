@@ -113,7 +113,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
 
         // Read-only contract: refuse write modes instead of pretending they worked.
         if (mode != MODE_READ) {
-            throw FileNotFoundException("Immich Picker is read-only (requested mode: $mode)")
+            throw FileNotFoundException("Immich File Picker is read-only (requested mode: $mode)")
         }
 
         signal?.throwIfCanceled()
@@ -150,7 +150,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             Log.w(TAG, "openDocument: credential rejected", e)
             service.onAuthFailure(e.message)
             throw FileNotFoundException(
-                "Immich session expired; open Immich Picker to sign in again, or use an API key",
+                "Immich session expired; open Immich File Picker to sign in again, or use an API key",
             )
         } catch (e: ApiException.Forbidden) {
             // Permission problem, not an expired session: the UI must not be told to

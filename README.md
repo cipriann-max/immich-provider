@@ -1,4 +1,4 @@
-# Immich Picker
+# Immich File Picker
 
 > **Not affiliated with or endorsed by the Immich project.** This is an independent,
 > third-party client for the Immich API. "Immich" is used here only to describe what the app
@@ -12,9 +12,16 @@ that opens a file chooser.
 It is a **standalone, read-only** client. It does not touch the official Immich app, does not
 upload, delete or edit anything, and needs no root, no ADB and no allowlist overrides.
 
-- **Package:** `dev.immich.picker`
+- **Package:** `com.virtunio.immichpicker`
+- **Version:** `1.0.0`
+- **Publisher:** Virtunio Ltd
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
+
+The package id is reverse-DNS of a domain Virtunio Ltd controls, not `dev.immich.*`, because
+this app is not part of the Immich project. The Kotlin package stays `dev.immich.picker`
+internally — that is a source-code detail with no user-visible effect. The public
+`applicationId` is what Android, the launcher and the document provider authority use.
 
 ---
 
@@ -77,28 +84,131 @@ adb install -r -g app/build/outputs/apk/debug/app-debug.apk
 The debug build uses the application id suffix `.debug`, so it can sit side by side with a
 release install.
 
-### Signing a release build
+### Building a release APK
 
-Create `keystore.properties` in the **project root** (it is gitignored):
+Use [`release.sh`](release.sh). It builds, signs, verifies the signature and stages the
+APK with a checksum — no GitHub and no CI required:
 
-```properties
-storeFile=release.jks
-storePassword=your-store-password
-keyAlias=immich-picker
-keyPassword=your-key-password
+```bash
+./release.sh            # version from app/build.gradle.kts (currently 1.0.0)
+./release.sh 1.2.3      # explicit version name; versionCode derived as 10203
+./release.sh 1.2.3 7    # explicit name and code
 ```
 
-Create the keystore if you do not have one:
+Output:
+
+```
+dist/immich-file-picker-1.0.0.apk
+dist/immich-file-picker-1.0.0.apk.sha256
+```
+
+The script refuses to finish if the APK is unsigned, or if it is signed by a certificate
+that does not carry `O=Virtunio Ltd`. That guard exists because a release signed with the
+wrong key cannot be installed over an existing one — better to fail at build time.
+
+### Signing keys
+
+| Property | Value |
+|---|---|
+| Publisher | **Virtunio Ltd** |
+| Certificate DN | `CN=Immich File Picker, O=Virtunio Ltd, OU=Applications, L=Nicosia, C=CY` |
+| Alias | `immich-picker` |
+| Algorithm | RSA 4096, self-signed, SHA384withRSA, 10000 days |
+| Certificate SHA-256 | `4eb44b6de93977f9f0890ecbff3b045730879e669d64f2e5cd5223a5cf7ae931` |
+
+The keystore lives **outside the repository**, in `$HOME/keystores/immich-picker-release.jks`,
+so it cannot be committed by accident even if `.gitignore` changes. The password is in
+`$HOME/keystores/immich-picker-release.password` (mode 600).
+
+**Back this file up somewhere durable.** If it is lost, no future release can update an
+existing install; every user would have to uninstall first. There is no recovery path —
+Google Play is not involved, so no key-escrow service exists for it.
+
+To create a replacement keystore (only if you are starting over, since existing installs
+cannot be updated with a new key):
 
 ```bash
 keytool -genkeypair -v \
-  -keystore release.jks \
+  -keystore ~/keystores/immich-picker-release.jks \
   -alias immich-picker \
-  -keyalg RSA -keysize 4096 -validity 10000
+  -keyalg RSA -keysize 4096 -validity 10000 \
+  -storetype PKCS12 \
+  -dname "CN=Immich File Picker, O=Virtunio Ltd, OU=Applications, L=Nicosia, C=CY"
 ```
 
-Then `./gradlew :app:assembleRelease` produces a signed APK. If the file is absent the
-release build stays unsigned instead of failing, so CI can still compile.
+### Local signing configuration
+
+[`release.sh`](release.sh) and Gradle read signing material from either of two places, so
+the same build works on a laptop and in CI:
+
+1. **`keystore.properties`** in the project root (gitignored) — normal local use:
+
+   ```properties
+   storeFile=/home/you/keystores/immich-picker-release.jks
+   storePassword=…
+   keyAlias=immich-picker
+   keyPassword=…
+   ```
+
+2. **Environment variables** — used by CI, and by anyone who prefers not to write a file:
+
+   | Variable | Meaning |
+   |---|---|
+   | `RELEASE_KEYSTORE_FILE` | path to the `.jks` |
+   | `RELEASE_KEYSTORE_PASSWORD` | keystore password |
+   | `RELEASE_KEY_ALIAS` | key alias |
+   | `RELEASE_KEY_PASSWORD` | key password |
+
+   Environment variables win when the full set is present, so a stale local file cannot
+   quietly produce a differently-signed APK in a release pipeline.
+
+If neither is configured, `./gradlew :app:assembleRelease` still compiles but yields an
+**unsigned** APK, which Android will refuse to install. That is intentional: a contributor
+without signing material can still build and run tests.
+
+Verify any APK's publisher yourself:
+
+```bash
+"$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs \
+  dist/immich-file-picker-1.0.0.apk
+```
+
+### Publishing with GitHub Actions
+
+Two workflows:
+
+| Workflow | Trigger | Signs | Publishes |
+|---|---|---|---|
+| [`ci.yml`](.github/workflows/ci.yml) | push to `main`, every PR | no | no |
+| [`release.yml`](.github/workflows/release.yml) | push tag `v*`, or manual run | yes | GitHub Release |
+
+Cutting a release is tagging:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The tag is the single source of truth: `release.yml` strips the leading `v`, sets
+`versionName` from it, derives `versionCode` as `major*10000 + minor*100 + patch`, runs the
+unit tests, builds via [`release.sh`](release.sh), verifies the `Virtunio Ltd` signature,
+and creates the Release with the APK and checksum attached. Re-running a tag replaces the
+assets rather than failing.
+
+Add these four repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | How to produce it |
+|---|---|
+| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 ~/keystores/immich-picker-release.jks` |
+| `RELEASE_KEYSTORE_PASSWORD` | same password as `storePassword` |
+| `RELEASE_KEY_ALIAS` | `immich-picker` |
+| `RELEASE_KEY_PASSWORD` | same password as `keyPassword` |
+
+If `RELEASE_KEYSTORE_BASE64` is missing the release job fails on purpose rather than
+publishing an unsigned APK.
+
+Note that GitHub secrets are write-only: once uploaded, the value cannot be read back. That
+is why the keystore must also exist locally — the Actions secret is a copy, not the backup.
 
 ---
 
@@ -196,7 +306,7 @@ If your server uses a self-signed certificate, open **Certificate options** in S
 2. Android shows a picker. If you only see the system photo picker, look for a menu (⋮) or a
    **Browse…** / **Files** entry — Chrome and some other apps open the photo picker first by
    default, and it has no way to show third-party providers.
-3. Choose **Immich Picker** from the source list.
+3. Choose **Immich File Picker** from the source list.
 
 The picker is registered for **every** MIME type, not just `image/*` and `video/*`, so it also
 appears in generic "attach a file" sheets — chat apps, e-mail clients, browser upload forms that
@@ -375,6 +485,10 @@ What is *not* resilient is a removed or retyped field. That surfaces as an expli
 ## Project layout
 
 ```
+release.sh                      Build + sign + verify a release APK (no CI needed)
+.github/workflows/ci.yml        Tests and debug build on push/PR
+.github/workflows/release.yml   Tag-driven signed release with GitHub Release
+
 app/src/main/kotlin/dev/immich/picker/
 ├── api/                    Generated from the OpenAPI spec — do not edit
 │   ├── Models.kt           39 @Serializable models
@@ -435,7 +549,7 @@ inset, rather than upscaling a small derivative.
 `queryRoots()` returns nothing on purpose. A root makes DocumentsUI render its **own** browser
 for Immich with a layout and sort order you cannot control, which produces a second, worse
 picker alongside this one. The provider still does the important work: it resolves
-`content://dev.immich.picker.documents/document/asset:<id>` and streams the original through
+`content://com.virtunio.immichpicker.documents/document/asset:<id>` and streams the original through
 `openDocument()`, so the receiving app reads bytes over a normal SAF grant. Nothing is copied
 anywhere and the provider never needs to be browsable.
 

@@ -76,3 +76,6 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+
+# Release artifacts produced by release.sh (publish via GitHub Releases, not commits)
+dist/

@@ -74,7 +74,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Immich Picker") },
+                title = { Text("Immich File Picker") },
                 actions = {
                     if (state.loggedIn) {
                         TextButton(onClick = onLogout) { Text("Sign out") }
