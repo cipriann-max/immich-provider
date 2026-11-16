@@ -53,7 +53,13 @@ object PickerNavigation {
     fun canGoUp(location: PickerLocation): Boolean = parentOf(location) != null
 }
 
-/** Ordering options, chosen by us instead of by DocumentsUI. */
+/**
+ * Ordering options, chosen by us instead of by DocumentsUI.
+ *
+ * One toggle serves both lists the picker shows, so the label has to mean something in
+ * both contexts: assets are ordered by capture date, albums by last activity. Wording that
+ * named only dates made the button look broken on the album list.
+ */
 enum class SortOrder(val label: String) {
     NEWEST_FIRST("Newest first"),
     OLDEST_FIRST("Oldest first"),
@@ -214,10 +220,29 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleSort() {
         _state.update { it.copy(sort = it.sort.toggle()) }
-        // Ordering is applied server-side so paging stays correct; toggling restarts
-        // the listing rather than re-sorting a partial page.
-        if (_state.value.location != PickerLocation.Albums) {
+        // Assets are ordered server-side so paging stays correct, which means toggling
+        // restarts the listing rather than re-sorting a partial page. Albums are a local
+        // list, so they are simply re-sorted in place — before this, the button did
+        // nothing at all on the Albums tab.
+        val location = _state.value.location
+        if (location == PickerLocation.Albums) {
+            applyAlbumSort()
+        } else {
             reloadAssets()
+        }
+    }
+
+    /** Re-sorts the album list in place under the current [SortOrder]. */
+    private fun applyAlbumSort() {
+        val newestFirst = _state.value.sort == SortOrder.NEWEST_FIRST
+        _state.update { current ->
+            current.copy(
+                albums = if (newestFirst) {
+                    current.albums.sortedByDescending { it.updatedAtMillis }
+                } else {
+                    current.albums.sortedBy { it.updatedAtMillis }
+                },
+            )
         }
     }
 
@@ -379,9 +404,16 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
                 val albums = withContext(Dispatchers.IO) {
                     session.repository.albums(forceRefresh = true)
                 }
+                // Honour the current sort so reloading does not silently snap back to
+                // newest-first after the user toggled it.
+                val newestFirst = _state.value.sort == SortOrder.NEWEST_FIRST
                 _state.update {
                     it.copy(
-                        albums = albums.sortedByDescending { album -> album.updatedAtMillis },
+                        albums = if (newestFirst) {
+                            albums.sortedByDescending { album -> album.updatedAtMillis }
+                        } else {
+                            albums.sortedBy { album -> album.updatedAtMillis }
+                        },
                         albumsLoading = false,
                     )
                 }

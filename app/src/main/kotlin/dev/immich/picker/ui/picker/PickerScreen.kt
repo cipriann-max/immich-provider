@@ -126,8 +126,12 @@ fun PickerScreen(
                 TopAppBar(
                     title = {
                         Text(
+                            // Names the current section in every tab, matching the tab
+                            // labels. The app name used to be shown for Timeline only,
+                            // so the title read "Immich File Picker" in one tab and
+                            // "Albums" in another for the same kind of position.
                             text = when (val loc = state.location) {
-                                PickerLocation.Recents -> "Immich File Picker"
+                                PickerLocation.Recents -> "Timeline"
                                 PickerLocation.Favorites -> "Favorites"
                                 PickerLocation.Albums -> "Albums"
                                 is PickerLocation.Album -> loc.album.name
@@ -151,14 +155,14 @@ fun PickerScreen(
                         }
                     },
                     actions = {
-                        // Sorting only applies to an asset grid, not the album list.
-                        if (!showingAlbums) {
-                            IconButton(onClick = onSortToggle) {
-                                Icon(
-                                    Icons.Filled.Sort,
-                                    contentDescription = "Sort: ${state.sort.label}",
-                                )
-                            }
+                        // Always present. The album list is sortable too (by last
+                        // activity), so the toolbar is identical in every tab instead of
+                        // changing shape based on where you are.
+                        IconButton(onClick = onSortToggle) {
+                            Icon(
+                                Icons.Filled.Sort,
+                                contentDescription = "Sort: ${state.sort.label}",
+                            )
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(
