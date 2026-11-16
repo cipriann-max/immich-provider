@@ -161,9 +161,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                     trustedCaPem = options.customCaPem,
                 )
                 val repository = ImmichRepository(authedClient, placeholderCredentials(baseUrl, secret, isApiKey, versionString))
-                // Validates without requiring `user.read`, so a minimal API key that can
-                // browse the library is accepted instead of rejected as unauthorised.
-                val (name, email) = withContext(Dispatchers.IO) { repository.validateAccess() }
+                // `user.read` is required, consistently with "Test connection" and app
+                // start: the profile call is the one validation path for all three.
+                val (name, email) = withContext(Dispatchers.IO) { repository.me() }
 
                 // 4. Persist.
                 val label = listOfNotNull(name?.takeIf { it.isNotBlank() }, email).joinToString(" · ")
@@ -213,15 +213,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } catch (e: ApiException.Forbidden) {
                 // A valid credential that lacks a permission. Signing in again would not
-                // help, so say what to change instead.
+                // help, so say exactly what to change instead.
                 _state.update {
                     it.copy(
                         loggingIn = false,
                         error = if (isApiKey) {
-                            "This API key is missing a permission the app needs. " +
-                                "Grant asset.read, asset.view, asset.download and album.read. (${e.message})"
+                            "This API key is missing a required permission. Grant all five: " +
+                                "$REQUIRED_PERMISSIONS. (${e.message})"
                         } else {
-                            "This account is not permitted to browse the library: ${e.message}"
+                            "This account is not permitted to read its own profile: ${e.message}"
                         },
                     )
                 }
@@ -343,9 +343,9 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 val assessment = VersionGate.assess(version)
                 service.updateStoredVersion(versionString)
-                // Same permission-tolerant validation as login, so a minimal API key is
-                // not mistaken for an expired session on every app start.
-                val (name, email) = withContext(Dispatchers.IO) { session.repository.validateAccess() }
+                // Same validation path as login and "Test connection", so all three agree
+                // on which permissions a credential needs.
+                val (name, email) = withContext(Dispatchers.IO) { session.repository.me() }
                 _state.update {
                     it.copy(
                         loggedIn = true,
@@ -419,6 +419,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 customCaPem = options.customCaPem?.decodeToString().orEmpty(),
             )
         }
+    }
+
+    private companion object {
+        /**
+         * Every permission the app actually uses, including `user.read`, which the
+         * credential validation calls (`GET /users/me`) genuinely requires.
+         */
+        const val REQUIRED_PERMISSIONS =
+            "asset.read, asset.view, asset.download, album.read, user.read"
     }
 
     private fun formatBytes(bytes: Long): String = when {

@@ -63,6 +63,14 @@ class ApiFailuresTest {
     }
 
     @Test
+    fun `403 for a key without user read names user read`() {
+        // The exact failure a key missing user.read produces from GET /users/me.
+        val error = failure(403, "Missing required permission: user.read")
+        assertEquals("user.read", (error as ApiException.Forbidden).permission)
+        assertTrue(error.message!!.contains("user.read"))
+    }
+
+    @Test
     fun `permission extraction ignores unrelated messages`() {
         assertNull(ApiFailures.permissionFrom("Forbidden"))
         assertNull(ApiFailures.permissionFrom(null))

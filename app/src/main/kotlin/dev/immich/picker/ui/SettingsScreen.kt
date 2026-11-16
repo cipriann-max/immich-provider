@@ -173,8 +173,10 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "The key needs these permissions: asset.read, asset.view, " +
-                        "asset.download, album.read. Create it in Immich → Account Settings → API Keys.",
+                    "The key needs all five permissions: user.read, asset.read, asset.view, " +
+                        "asset.download, album.read. Create it in Immich → Account Settings → " +
+                        "API Keys. user.read is required because the app reads your profile to " +
+                        "validate the key; without it sign-in is rejected.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

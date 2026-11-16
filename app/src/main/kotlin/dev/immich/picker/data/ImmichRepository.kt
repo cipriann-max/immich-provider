@@ -40,33 +40,18 @@ class ImmichRepository(
 
     suspend fun serverVersion(): ServerVersionResponseDto = api.getServerVersion()
 
-    /** Returns the signed-in user's display data; validates the credential. */
+    /**
+     * Returns the signed-in user's display data, and validates the credential.
+     *
+     * This is the single validation path used by login, "Test connection" and app start.
+     * `GET /users/me` requires `user.read`, so that permission is genuinely required —
+     * not optional. There is deliberately no fallback to a library call: a credential
+     * that cannot read the profile is rejected up front with a clear message, instead of
+     * being accepted here and failing later with a confusing error.
+     */
     suspend fun me(): Pair<String?, String?> {
         val user = api.getMyUser()
         return user.name to user.email
-    }
-
-    /**
-     * Validates the stored credential without requiring `user.read`.
-     *
-     * `GET /users/me` needs `user.read`, which an API key does **not** need in order to
-     * browse a library. Validating through it therefore rejected perfectly usable
-     * minimal-permission keys. Here a `403` on the profile call falls back to a real
-     * library call, so a key with `asset.read` is accepted while the account name is
-     * simply left unknown. Anything else, including `401`, still fails.
-     *
-     * @return `(name, email)`, either of which may be null when the profile is unreadable.
-     */
-    suspend fun validateAccess(): Pair<String?, String?> {
-        try {
-            return me()
-        } catch (e: ApiException.Forbidden) {
-            Log.i(TAG, "profile unreadable with this credential (${e.message}); checking library access")
-        }
-
-        // One-item search proves `asset.read` without pulling a page of results.
-        api.searchAssets(body = searchBody(cursor = null, pageSize = 1))
-        return null to null
     }
 
     // -------------------------------------------------------------------- albums

@@ -127,21 +127,23 @@ written to disk. The stored token is the session itself, not a renewable JWT.
 
 **API key** has nothing to exchange: the key *is* the credential. It is stored as `secret`
 and sent on every request as the `x-api-key` header. Create one in Immich under
-**Account Settings → API Keys**. The key needs exactly these permissions:
+**Account Settings → API Keys**. The key needs **all five** permissions:
 
 | Permission | Needed for |
 |---|---|
+| `user.read` | Validating the key on sign-in, "Test connection" and every app start |
 | `asset.read` | Listing timeline, albums, favourites |
 | `asset.view` | Thumbnails in the grid |
 | `asset.download` | Fetching the original file when you pick it |
 | `album.read` | The Albums tab |
 
+`user.read` is **not optional**. Validation reads your profile through
+`GET /api/users/me`, which Immich guards with that permission. A key without it is refused
+at sign-in with a `403` naming the missing permission. All three paths — sign-in, "Test
+connection" and app start — use the same call, so they agree on what is required.
+
 Nothing else is required. In particular the app never requests upload, delete or edit
 permissions, and the Immich server would reject those calls anyway if it tried.
-
-`user.read` is **not** needed. The app validates a credential by reading your profile name
-and email, but if that call is refused it falls back to a one-item library search, so a key
-with exactly the permissions above is accepted. Your name and email simply stay unknown.
 
 ### Which credential lasts longer
 
@@ -300,7 +302,7 @@ reached from real user actions — nothing here is speculative.
 |---|---|---|
 | `GET` | `/api/server/version` | Login, and on every app start (version gate) |
 | `POST` | `/api/auth/login` | Signing in with email and password |
-| `GET` | `/api/users/me` | Validating the credential and reading your name and email; falls back to `search/metadata` when the credential lacks `user.read` |
+| `GET` | `/api/users/me` | Validating the credential and reading your name and email; requires `user.read` |
 | `GET` | `/api/albums` | Opening the Albums tab |
 | `POST` | `/api/search/metadata` | Paging the Timeline, an album, or Favorites |
 | `GET` | `/api/assets/{id}` | Resolving metadata for a document URI the picker handed out |
