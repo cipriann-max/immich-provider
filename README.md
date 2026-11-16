@@ -200,6 +200,12 @@ unit tests, builds via [`release.sh`](release.sh), verifies the `Virtunio Ltd` s
 and creates the Release with the APK and checksum attached. Re-running a tag replaces the
 assets rather than failing.
 
+Both workflows set up the SDK with `android-actions/setup-android@v4`, and that floor
+matters: `v3` runs `sdkmanager tools` during setup, but Google no longer serves the `tools`
+package, so a `v3` pin fails the job with `Failed to find package 'tools'` before Gradle
+runs. Everything `tools` used to provide now ships in the command line tools that `v4`
+installs.
+
 Add these four repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | How to produce it |

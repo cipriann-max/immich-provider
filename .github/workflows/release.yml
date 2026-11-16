@@ -64,8 +64,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Must be v4 or newer. v3 shells out to `sdkmanager tools` during setup, and Google
+      # no longer serves that package, so the job dies with "Failed to find package
+      # 'tools'" before Gradle is ever reached. v4 installs only platform-tools and its
+      # contents now live in the cmdline-tools it puts on PATH.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install required SDK platforms
         run: |
