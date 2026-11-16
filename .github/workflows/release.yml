@@ -110,6 +110,8 @@ jobs:
       # ever revealing secret material.
       - name: Validate keystore
         env:
+          # Needed for the length report below; `set -u` aborts on an unset variable.
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
@@ -121,7 +123,8 @@ jobs:
           echo "Keystore bytes : $SIZE"
           echo "Keystore sha256: $SHA"
           echo "First 4 bytes  : $MAGIC"
-          echo "Secret length  : ${#KEYSTORE_BASE64} base64 chars"
+          SECRET_LEN="$(printf '%s' "${KEYSTORE_BASE64:-}" | wc -c)"
+          echo "Secret length  : $SECRET_LEN base64 chars"
           echo "Compare 'Keystore sha256' with \`sha256sum ~/keystores/<file>.jks\` locally;"
           echo "the values must match, otherwise the secret was mangled on upload."
 
@@ -132,13 +135,20 @@ jobs:
             exit 1
           fi
 
+          # An unset secret expands to nothing here; report it rather than tripping over
+          # `set -u`, so a missing password reads as a missing secret and not a shell error.
+          if [ -z "${RELEASE_KEYSTORE_PASSWORD:-}" ] || [ -z "${RELEASE_KEY_ALIAS:-}" ]; then
+            echo "::error::RELEASE_KEYSTORE_PASSWORD and RELEASE_KEY_ALIAS must both be set."
+            exit 1
+          fi
+
           # Opening the store proves the password decrypts it; listing the alias proves the
           # key the build will sign with is actually present.
           if ! keytool -list -keystore "$KS" -storepass "$RELEASE_KEYSTORE_PASSWORD" \
                 -alias "$RELEASE_KEY_ALIAS" >/dev/null 2>&1; then
             echo "::error::Cannot open the keystore with RELEASE_KEYSTORE_PASSWORD / RELEASE_KEY_ALIAS."
             echo "Check both secrets; keytool stderr follows (no secret is printed):"
-            keytool -list -keystore "$KS" -storepass "${RELEASE_KEYSTORE_PASSWORD:-}" || true
+            keytool -list -keystore "$KS" -storepass "$RELEASE_KEYSTORE_PASSWORD" || true
             exit 1
           fi
           echo "OK: keystore opens and alias '$RELEASE_KEY_ALIAS' is present."
