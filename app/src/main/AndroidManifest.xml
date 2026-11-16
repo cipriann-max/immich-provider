@@ -37,9 +37,15 @@
             ImmichDocumentsProvider.queryRoots) and all browsing happens here, where the
             grid is ordered by date.
 
-            Registered for both content actions so Immich shows up wherever an app asks
-            for a file, and the chosen assets are returned as content:// URIs on our own
-            provider, which the receiver reads back through openDocument().
+            Registered for both content actions and for every MIME type, so Immich appears
+            in generic "attach a file" choosers too, not only in photo pickers. An Immich
+            library only holds photos and videos, so the activity itself filters the grid
+            against whatever the caller asked for (image/*, a specific type, or the
+            EXTRA_MIME_TYPES list) and explains when a document type is requested.
+
+            Narrowing the filter back to image/* and video/* would make the app invisible
+            to chat apps and browsers that ask for application/* or */* — that was the
+            original behaviour and the reason Immich never showed up for document uploads.
         -->
         <activity
             android:name=".ui.picker.PickerActivity"
@@ -52,16 +58,14 @@
                 <action android:name="android.intent.action.GET_CONTENT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.OPENABLE" />
-                <data android:mimeType="image/*" />
-                <data android:mimeType="video/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
 
             <intent-filter>
                 <action android:name="android.intent.action.OPEN_DOCUMENT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.OPENABLE" />
-                <data android:mimeType="image/*" />
-                <data android:mimeType="video/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 

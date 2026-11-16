@@ -160,6 +160,13 @@ If your server uses a self-signed certificate, open **Certificate options** in S
    default, and it has no way to show third-party providers.
 3. Choose **Immich Picker** from the source list.
 
+The picker is registered for **every** MIME type, not just `image/*` and `video/*`, so it also
+appears in generic "attach a file" sheets — chat apps, e-mail clients, browser upload forms that
+accept documents. Because an Immich library only contains photos and videos, the grid is
+filtered against exactly what the caller asked for (`image/*`, a concrete type, or the
+`EXTRA_MIME_TYPES` list). If the caller only accepts a type Immich cannot supply, such as
+`application/pdf`, the app says so instead of showing a grid where nothing is selectable.
+
 Immich does **not** appear as an icon inside the system photo picker. That integration
 requires a `CloudMediaProvider` plus an ADB allowlist override, which this app deliberately
 avoids. The SAF/file-picker route needs no special privileges and works everywhere.
@@ -217,6 +224,18 @@ you which endpoint disagreed and what version answered.
 
 The version this build was generated from and tested against is compiled into
 `BuildConfig.TESTED_IMMICH_VERSION` and is currently **3.4.1**.
+
+### What the picker is registered for
+
+| Action | MIME types | Effect |
+|---|---|---|
+| `GET_CONTENT` | `*/*` | Appears in every generic file chooser and photo picker that honours SAF |
+| `OPEN_DOCUMENT` | `*/*` | Same, for callers that want a persistable grant |
+
+The filters deliberately do **not** list only `image/*` and `video/*`. Narrow filters make the
+app invisible to any caller that asks for `application/*` or `*/*`, which is why Immich never
+showed up for document uploads. Type filtering is done inside the picker instead, where the
+caller's exact request is known.
 
 ### Known limitations
 
@@ -336,6 +355,8 @@ app/src/main/kotlin/dev/immich/picker/
 │   └── OriginalCache.kt    500 MB + 30 min TTL
 ├── provider/
 │   └── ImmichDocumentsProvider.kt  Serves content:// URIs (rootless, read-only)
+├── util/
+│   └── MimeFilters.kt      Caller MIME parsing and asset matching
 ├── ui/
 │   ├── MainActivity.kt         Settings entry point
 │   ├── SettingsScreen.kt       Compose login/status/cache UI
@@ -349,6 +370,9 @@ app/src/main/kotlin/dev/immich/picker/
 └── tools/openapi/
     ├── generate_models.py          Spec → Kotlin generator
     └── immich-v3.4.1.json          Vendored spec
+
+app/src/test/kotlin/dev/immich/picker/
+└── util/MimeFiltersTest.kt     Caller MIME parsing and matching rules
 ```
 
 ### Icon assets

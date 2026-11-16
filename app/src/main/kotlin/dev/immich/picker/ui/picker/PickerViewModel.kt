@@ -8,6 +8,7 @@ import dev.immich.picker.data.AssetPage
 import dev.immich.picker.data.PickerAlbum
 import dev.immich.picker.data.PickerAsset
 import dev.immich.picker.net.ApiException
+import dev.immich.picker.util.MimeFilters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +71,12 @@ data class PickerUiState(
     val albumsLoading: Boolean = false,
     val albumsError: String? = null,
     val needsLogin: Boolean = false,
+    /**
+     * Non-null when the caller asked for a type an Immich library cannot provide, e.g.
+     * `application/pdf`. The value is a human-readable description of the request, shown
+     * instead of an unselectable grid.
+     */
+    val unsupportedRequest: String? = null,
 )
 
 /**
@@ -341,22 +348,24 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
         toggleSelection(asset)
     }
 
-    fun matchesFilter(asset: PickerAsset): Boolean {
-        if (mimeFilter.isEmpty()) return true
-        val assetType = asset.mimeType.substringBefore('/')
-        return mimeFilter.any { filter ->
-            // Wildcard comparisons are written with constants so the literal
-            // slash-star sequence never appears next to a comment opener.
-            val wildcard = STAR_SLASH
-            filter == wildcard ||
-                filter == asset.mimeType ||
-                (filter.endsWith(wildcard) && filter.substringBefore('/') == assetType)
-        }
-    }
+    fun matchesFilter(asset: PickerAsset): Boolean =
+        MimeFilters.matches(mimeFilter, asset.mimeType)
 
-    /** Set from the calling intent's type; empty means "everything". */
+    /**
+     * Set from the calling intent's type and `EXTRA_MIME_TYPES`; empty means "everything".
+     *
+     * The picker is registered for all MIME types, so a request can name a type Immich
+     * cannot serve. That case is recorded in the UI state so the screen can say so
+     * instead of showing a grid where no tile can be selected.
+     */
     fun setMimeFilter(types: List<String>) {
         mimeFilter = types
+        val unsupported = if (MimeFilters.allowsMedia(types)) {
+            null
+        } else {
+            MimeFilters.describe(types)
+        }
+        _state.update { it.copy(unsupportedRequest = unsupported) }
     }
 
     private var mimeFilter: List<String> = emptyList()
@@ -371,8 +380,5 @@ class PickerViewModel(app: Application) : AndroidViewModel(app) {
     private companion object {
         /** Comfortably above one screen of tiles, small enough to feel instant. */
         const val PAGE_SIZE = 120
-
-        /** The "any type" MIME wildcard, kept as a constant to stay comment-safe. */
-        const val STAR_SLASH = "*" + "/" + "*"
     }
 }

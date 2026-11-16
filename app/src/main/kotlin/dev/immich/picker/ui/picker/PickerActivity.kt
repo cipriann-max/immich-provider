@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.immich.picker.data.ImmichService
 import dev.immich.picker.data.PickerAsset
 import dev.immich.picker.ui.MainActivity
+import dev.immich.picker.util.MimeFilters
 
 /**
  * The in-app picker.
@@ -75,7 +76,9 @@ class PickerActivity : ComponentActivity() {
                 else -> 1
             },
         )
-        viewModel.setMimeFilter(expandMimeTypes(intent?.type))
+        // Only a real picker has a caller to satisfy, so an unsatisfiable request is
+        // only reported when there is one.
+        viewModel.setMimeFilter(if (mode == Mode.PICK) requestedMimeTypes() else emptyList())
         viewModel.start()
 
         onBackPressedDispatcher.addCallback(
@@ -168,14 +171,16 @@ class PickerActivity : ComponentActivity() {
         )
 
     /**
-     * Turns the calling intent's MIME type into a filter list. A null or wildcard type
-     * means "no restriction", which the view model represents as an empty list.
+     * The MIME types the caller accepts.
+     *
+     * `EXTRA_MIME_TYPES` is read first because a document picker commonly sends the
+     * universal wildcard as the intent type and the real list in that extra; ignoring it
+     * would offer files the caller cannot use.
      */
-    private fun expandMimeTypes(type: String?): List<String> = when {
-        type.isNullOrBlank() -> emptyList()
-        type == ANY_TYPE -> emptyList()
-        else -> listOf(type)
-    }
+    private fun requestedMimeTypes(): List<String> = MimeFilters.parse(
+        type = intent?.type,
+        extraTypes = intent?.getStringArrayExtra(Intent.EXTRA_MIME_TYPES),
+    )
 
     private enum class Mode {
         /** Launched as a real content picker; returns a result. */
@@ -183,10 +188,5 @@ class PickerActivity : ComponentActivity() {
 
         /** Launched for browsing/settings; selection is disabled. */
         BROWSE,
-    }
-
-    private companion object {
-        /** The MIME wildcard, assembled so it never sits next to a comment opener. */
-        val ANY_TYPE: String = "*" + "/" + "*"
     }
 }

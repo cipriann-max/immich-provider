@@ -184,6 +184,10 @@ fun PickerScreen(
         Box(Modifier.padding(padding).fillMaxSize()) {
             when {
                 state.needsLogin -> LoginPrompt(onLogin)
+                state.unsupportedRequest != null -> UnsupportedRequestPane(
+                    requested = state.unsupportedRequest,
+                )
+
                 showingAlbums -> AlbumsPane(
                     state = state,
                     onOpenAlbum = onOpenAlbum,
@@ -529,6 +533,36 @@ private fun LoginPrompt(onLogin: () -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
         Button(onClick = onLogin) { Text("Open settings") }
+    }
+}
+
+/**
+ * Shown when the calling app asked for a type nothing in an Immich library can satisfy.
+ *
+ * Because the picker now appears in every file chooser, a caller may legitimately ask for
+ * `application/pdf` or `text/plain`. Explaining that is better than a grid of photos whose
+ * tiles refuse every tap.
+ */
+@Composable
+private fun UnsupportedRequestPane(requested: String) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("This app wants a file Immich cannot provide", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "The request is for: $requested. An Immich library holds photos and videos only, " +
+                "so there is nothing here to attach.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Pick the file from another source, or ask the app for a photo or video.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
