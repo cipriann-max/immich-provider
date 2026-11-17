@@ -165,10 +165,39 @@ class ImmichRepository(
         filter = filter,
     )
 
+    /**
+     * One page of favourites, newest first.
+     *
+     * Uses the v3 `filter` object rather than the deprecated top-level `isFavorite` field,
+     * which Immich removed from the search DTO.
+     */
+    suspend fun favoriteAssets(
+        cursor: String? = null,
+        pageSize: Int = PAGE_SIZE,
+        newestFirst: Boolean = true,
+    ): AssetPage = api.searchAssets(
+        body = searchBody(
+            cursor = cursor,
+            pageSize = pageSize,
+            newestFirst = newestFirst,
+            filter = SearchFilter(isFavorite = BoolFilter(eq = true)),
+        ),
+    ).toPage()
+
     private fun dev.immich.picker.api.SearchResponseDto.toPage(): AssetPage {
         val page = assets
         return AssetPage(
-            assets = page?.items.orEmpty().mapNotNull { it.toPickerAsset() },
+            // Trashed assets are dropped here rather than by the server. Immich 3.4.1's
+            // MetadataSearchDto has no `isTrashed` filter — only the deprecated
+            // `trashedAfter`/`trashedBefore` date bounds — so asking for "not trashed" is
+            // not expressible in a request. Filtering on the response keeps trashed photos
+            // out of the picker, which is the behaviour that matters, at the cost of an
+            // occasionally short page.
+            assets = page?.items.orEmpty()
+                .filterNot { it.isTrashed }
+                .mapNotNull { it.toPickerAsset() },
+            // The server's cursor is passed through untouched: paging must follow the
+            // server's own position, not the number of rows that survived filtering.
             nextCursor = page?.nextCursor,
         )
     }

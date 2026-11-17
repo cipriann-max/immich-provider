@@ -41,6 +41,7 @@ Immich              the newest 50 photos and videos, newest first
 Opening the root shows the 50 most recent files; scrolling loads another 50, and so on up to
 the whole library. Files are numbered from `0001` in view order so the list is chronological
 by default — see [Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix).
+Assets in the trash are excluded.
 
 ### Screens
 
@@ -450,14 +451,24 @@ exact request is known.
 
 ### The DocumentsUI root
 
-Opening **Immich** in DocumentsUI shows the **50 newest assets**, with an **Albums** folder
-mixed in for navigating by album. Scrolling loads another 50, then another, up to the whole
-library. Each page returns what has arrived plus `EXTRA_LOADING`, and the next page is fetched
-when DocumentsUI asks again.
+```
+Immich              the newest assets, newest first
+├── Albums          one folder per album
+└── Favorites       starred assets
+```
+
+The first page is 50 assets. Further pages load in the background and DocumentsUI re-queries
+as each arrives, up to **400 assets per folder**. Trashed assets are excluded everywhere.
+
+400 is a ceiling, not a limit on the library: DocumentsUI has no lazy paging for providers
+(it does not even re-query when you scroll to the bottom — measured: three swipes produced zero
+queries), so growth has to be driven by content-change notifications, and an unbounded version
+loaded a 60k library within seconds of opening. 400 is deep enough to find a recent file while
+keeping an accidental open cheap. Older items remain reachable through Albums.
 
 The root is always present, even signed out: its summary then says a sign-in is needed, and the
-sign-in screen is one tap away. Timeline and Albums open to that message rather than looking
-broken.
+sign-in screen is one tap away. Timeline, Albums and Favorites open to that message rather than
+looking broken.
 
 ### Why file names get a numeric prefix
 
@@ -490,8 +501,12 @@ so the default is wrong again next time.
   ADB allowlist.
 - **Displayed filenames carry a numeric prefix.** Cosmetic, and explained above; the attached
   file keeps its real name.
-- **The tree is two levels.** The root lists recent assets plus one Albums folder. There is no
-  year/month nesting and no Favorites folder.
+- **The tree is two levels.** The root lists recent assets plus Albums and Favorites folders.
+  There is no year/month nesting.
+- **Each folder stops at 400 assets.** See the root section above for why more cannot be paged
+  lazily.
+- **The trash is excluded, not browsable.** Deleted items are filtered out rather than offered
+  as their own folder.
 - **Search is limited** to what has already been loaded in this session.
 - **Single server per install.** Multi-server would need a credential-per-root model.
 - **The picker is DocumentsUI.** Its layout, grid density and sort menu are not ours to change.
@@ -613,6 +628,7 @@ app/src/main/kotlin/dev/immich/picker/
 │   └── RankedNames.kt      Numeric prefixes that pin DocumentsUI's sort order
 ├── ui/
 │   ├── MainActivity.kt         Settings, and DocumentsUI's root settings target
+│   ├── SafPickerBridgeActivity.kt  Makes app-list pickers show Immich, then hands off
 │   ├── SettingsScreen.kt       Compose login/status/cache UI
 │   ├── SettingsViewModel.kt    Login, validation, version checks
 │   └── PickerNotifications.kt  Auth/version/network notifications

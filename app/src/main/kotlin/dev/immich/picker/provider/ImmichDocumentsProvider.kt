@@ -146,8 +146,11 @@ class ImmichDocumentsProvider : DocumentsProvider() {
 
         val signedIn = service.isLoggedIn()
         val credentials = runCatching { service.credentialStore.current() }.getOrNull()
+        // The email alone. `accountLabel` is "Name · email", which DocumentsUI truncates
+        // anyway, and the root title already says which service this is.
         val summary = when {
-            signedIn -> credentials?.accountLabel ?: credentials?.userEmail
+            signedIn -> credentials?.userEmail?.takeIf { it.isNotBlank() }
+                ?: credentials?.accountLabel
             else -> ctx.getString(R.string.provider_root_summary_signed_out)
         }
 
@@ -187,6 +190,10 @@ class ImmichDocumentsProvider : DocumentsProvider() {
 
             DocumentIds.isAlbums(documentId) -> {
                 writeDirectoryRow(cursor, documentId, ctx.getString(R.string.provider_albums_title))
+            }
+
+            DocumentIds.isFavorites(documentId) -> {
+                writeDirectoryRow(cursor, documentId, ctx.getString(R.string.provider_favorites_title))
             }
 
             DocumentIds.isAlbum(documentId) -> {
@@ -245,7 +252,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             DocumentIds.isRoot(parentDocumentId) ->
                 rootCursor(projection, filters)
 
-            DocumentIds.isAlbum(parentDocumentId) ->
+            DocumentIds.isAlbum(parentDocumentId) || DocumentIds.isFavorites(parentDocumentId) ->
                 assetListCursor(parentDocumentId, projection, filters)
 
             else -> MatrixCursor(projection ?: DEFAULT_DOCUMENT_PROJECTION)
@@ -268,11 +275,13 @@ class ImmichDocumentsProvider : DocumentsProvider() {
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean =
         when {
             DocumentIds.isRoot(parentDocumentId) ->
-                DocumentIds.isAlbums(documentId) || DocumentIds.isAsset(documentId)
+                DocumentIds.isAlbums(documentId) || DocumentIds.isFavorites(documentId) ||
+                    DocumentIds.isAsset(documentId)
 
             DocumentIds.isAlbums(parentDocumentId) -> DocumentIds.isAlbum(documentId)
 
-            DocumentIds.isAlbum(parentDocumentId) -> DocumentIds.isAsset(documentId)
+            DocumentIds.isAlbum(parentDocumentId) || DocumentIds.isFavorites(parentDocumentId) ->
+                DocumentIds.isAsset(documentId)
 
             else -> false
         }
@@ -299,6 +308,12 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             DocumentIds.ALBUMS_DOCUMENT_ID,
             ctx?.getString(R.string.provider_albums_title) ?: "Albums",
             summary = ctx?.getString(R.string.provider_albums_summary),
+        )
+        writeDirectoryRow(
+            cursor,
+            DocumentIds.FAVORITES_DOCUMENT_ID,
+            ctx?.getString(R.string.provider_favorites_title) ?: "Favorites",
+            summary = ctx?.getString(R.string.provider_favorites_summary),
         )
 
         return cursor.withExtras(state)
@@ -519,10 +534,16 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         /** When the last chunk finished; throttles the many queries one render produces. */
         private var lastFetchAtMillis: Long = 0L
 
+        /** True while a delayed fetch is queued, so only one is ever pending. */
+        private var scheduled = false
+
         fun snapshot(): PagerState = synchronized(lock) {
             PagerState(
                 assets = assets.toList(),
-                loading = !exhausted,
+                // "loading" drives EXTRA_LOADING, so it must go false once the ceiling is
+                // reached even if the server still has pages; otherwise DocumentsUI would
+                // be told more is coming forever.
+                loading = !exhausted && assets.size < MAX_LISTED,
                 exhausted = exhausted,
                 error = lastError,
             )
@@ -531,26 +552,51 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         /**
          * True when another chunk may be fetched right now.
          *
-         * Two conditions, both necessary:
+         * The folder must not be exhausted, and either nothing has been loaded yet or
+         * [MIN_FETCH_INTERVAL_MS] has passed since the last chunk landed.
          *
-         *  - the folder is not exhausted, and
-         *  - either nothing has been loaded yet, or [MIN_FETCH_INTERVAL_MS] has passed
-         *    since the last chunk landed.
-         *
-         * The interval is what fixes the runaway load. DocumentsUI issues several
-         * overlapping `queryChildDocuments` calls for a single screen — one per projection
-         * it needs — so "advance one chunk per query" advanced seven chunks per render:
-         * 350 rows before the first screen had even been drawn. Spacing chunks in time
-         * ties paging to the user scrolling, which is the only thing a person actually
-         * does seconds apart.
+         * The interval exists because DocumentsUI issues several overlapping
+         * `queryChildDocuments` calls for a single screen — one per projection it needs —
+         * so "advance one chunk per query" advanced seven chunks per render, delivering
+         * hundreds of rows before the first screen was drawn. Keeping the window short is
+         * what lets the separate, later query caused by scrolling still advance the pager.
          */
         fun canAdvance(nowMillis: Long): Boolean = synchronized(lock) {
             when {
                 exhausted -> false
+                // Stop at the ceiling: without this the folder would keep announcing that
+                // more is coming while never being allowed to fetch it.
+                assets.size >= MAX_LISTED -> false
                 assets.isEmpty() -> true
                 else -> nowMillis - lastFetchAtMillis >= MIN_FETCH_INTERVAL_MS
             }
         }
+
+        /** True when more pages exist, but only if the ceiling has not been reached. */
+        fun hasMore(): Boolean = synchronized(lock) {
+            !exhausted && assets.size < MAX_LISTED
+        }
+
+        /** Milliseconds until [canAdvance] would return true, 0 when it already does. */
+        fun millisUntilReady(nowMillis: Long): Long = synchronized(lock) {
+            if (assets.isEmpty() || exhausted || assets.size >= MAX_LISTED) return 0L
+            (MIN_FETCH_INTERVAL_MS - (nowMillis - lastFetchAtMillis)).coerceAtLeast(0L)
+        }
+
+        /**
+         * Claims the right to schedule a delayed fetch, so a burst of queries cannot queue
+         * several of them.
+         */
+        fun claimScheduledFetch(): Boolean = synchronized(lock) {
+            if (scheduled) {
+                false
+            } else {
+                scheduled = true
+                true
+            }
+        }
+
+        fun releaseScheduledFetch() = synchronized(lock) { scheduled = false }
 
         /** Appends one server page, dropping duplicates that a cursor can repeat. */
         fun append(page: AssetPage, nextCursor: String?) = synchronized(lock) {
@@ -598,12 +644,20 @@ class ImmichDocumentsProvider : DocumentsProvider() {
     }
 
     /**
-     * Advances [pager] by exactly one [PAGE_SIZE] chunk if it still has more, then returns
-     * the state to render.
+     * Advances [pager] by one [PAGE_SIZE] chunk when allowed, then returns the state to
+     * render.
      *
-     * The fetch is synchronous on the calling binder thread. That is what makes "load 50
-     * more" deterministic: the rows are in the cursor DocumentsUI is about to read, with no
-     * notification and therefore no possibility of a self-sustaining re-query loop.
+     * Two mechanisms are combined because neither is sufficient alone:
+     *
+     *  - The fetch is synchronous, so the rows are in the cursor DocumentsUI is about to
+     *    read.
+     *  - A content-change notification is sent afterwards, because DocumentsUI does not
+     *    re-query a folder just because the user scrolled (verified: three swipes produced
+     *    zero queries). Without the notification the list stops at one page.
+     *
+     * The [MIN_FETCH_INTERVAL_MS] throttle keeps that notification from turning into a
+     * runaway. When a query arrives inside the window, the next page is scheduled for when
+     * the window expires instead of being dropped, so a burst still ends with a full page.
      */
     private fun pagedState(pager: AssetPager, filters: List<String>): PagerState {
         if (!service.isLoggedIn()) {
@@ -625,12 +679,60 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             )
         }
 
-        if (pager.canAdvance(System.currentTimeMillis())) fetchChunk(pager)
+        val now = System.currentTimeMillis()
+        if (pager.canAdvance(now)) {
+            advanceAndAnnounce(pager)
+        } else if (pager.hasMore()) {
+            scheduleAdvance(pager, pager.millisUntilReady(now))
+        }
 
         val state = pager.snapshot()
         // Local re-sort: the order this provider returns is what the user sees, so it must
         // be newest-first regardless of how the server or DocumentsUI ordered anything.
         return state.copy(assets = state.assets.sortedNewestFirst())
+    }
+
+    /** Fetches one chunk and, when more remain, tells DocumentsUI to ask again. */
+    private fun advanceAndAnnounce(pager: AssetPager) {
+        val before = pager.snapshot().assets.size
+        fetchChunk(pager)
+        val after = pager.snapshot()
+        if (after.assets.size > before && pager.hasMore()) {
+            notifyChildrenChanged()
+        }
+    }
+
+    /**
+     * Runs [advanceAndAnnounce] once the throttle window expires.
+     *
+     * Only one fetch is ever queued per pager, so a burst of queries cannot build a backlog.
+     * The scheduling exists because DocumentsUI asks once and then waits: if that one query
+     * lands inside the throttle window and nothing follows, the list would stay one page
+     * long forever.
+     */
+    private fun scheduleAdvance(pager: AssetPager, delayMillis: Long) {
+        if (!pager.claimScheduledFetch()) return
+        val ctx = context
+        if (ctx == null) {
+            pager.releaseScheduledFetch()
+            return
+        }
+        val work = Runnable {
+            try {
+                pager.releaseScheduledFetch()
+                if (pager.hasMore()) advanceAndAnnounce(pager)
+            } catch (e: Exception) {
+                Log.w(TAG, "scheduled paging failed", e)
+            }
+        }
+        // A Handler rather than a Timer: it is main-looper bound, cheap, and the work
+        // immediately hops to its own thread anyway.
+        val runner = Runnable { Thread(work, "immich-paging").start() }
+        if (delayMillis <= 0L) {
+            runner.run()
+        } else {
+            android.os.Handler(ctx.mainLooper).postDelayed(runner, delayMillis)
+        }
     }
 
     /** Fetches exactly one [PAGE_SIZE] chunk for [pager]. */
@@ -685,15 +787,21 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             ?: DocumentIds.ROOT_DOCUMENT_ID
 
         val albumId = DocumentIds.albumIdOf(documentId)
-        return if (albumId != null) {
-            session.repository.albumAssets(
+        return when {
+            albumId != null -> session.repository.albumAssets(
                 albumId = albumId,
                 cursor = pager.nextCursor(),
                 pageSize = PAGE_SIZE,
                 newestFirst = true,
             )
-        } else {
-            session.repository.allAssets(
+
+            DocumentIds.isFavorites(documentId) -> session.repository.favoriteAssets(
+                cursor = pager.nextCursor(),
+                pageSize = PAGE_SIZE,
+                newestFirst = true,
+            )
+
+            else -> session.repository.allAssets(
                 cursor = pager.nextCursor(),
                 pageSize = PAGE_SIZE,
                 newestFirst = true,
@@ -900,6 +1008,26 @@ class ImmichDocumentsProvider : DocumentsProvider() {
      * Called on credential changes only — never from the listing path, because that would
      * make DocumentsUI re-query and page the whole library without user action.
      */
+    /**
+     * Announces that another page of assets is available for a folder.
+     *
+     * DocumentsUI does not re-query a folder just because the user scrolled to the bottom —
+     * three swipe gestures produced zero extra queries on-device. It re-queries only when
+     * the provider says the content changed, so this is what actually drives paging.
+     */
+    private fun notifyChildrenChanged() {
+        val ctx = context ?: return
+        val documentIds = pagers.keys + DocumentIds.ROOT_DOCUMENT_ID
+        documentIds.forEach { documentId ->
+            runCatching {
+                ctx.contentResolver.notifyChange(
+                    DocumentsContract.buildChildDocumentsUri(authority(), documentId),
+                    null,
+                )
+            }.onFailure { Log.w(TAG, "could not notify change for $documentId", it) }
+        }
+    }
+
     private fun notifyRootsChanged() {
         val ctx = context ?: return
         val resolver = ctx.contentResolver
@@ -909,6 +1037,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         listOf(
             DocumentIds.ROOT_DOCUMENT_ID,
             DocumentIds.ALBUMS_DOCUMENT_ID,
+            DocumentIds.FAVORITES_DOCUMENT_ID,
         ).forEach { documentId ->
             runCatching {
                 resolver.notifyChange(
@@ -950,11 +1079,23 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         /**
          * Minimum gap between chunks.
          *
-         * One render fires several queries; without this each advanced the pager and the
-         * whole library arrived before the first screen was drawn. A person scrolling
-         * cannot ask twice inside this window, so it costs nothing in normal use.
+         * One render fires several `queryChildDocuments` calls back to back; without a gap
+         * each advanced the pager, so a whole library arrived before the first screen was
+         * drawn. This window is short on purpose: it only needs to coalesce that millisecond
+         * burst. Anything longer starts swallowing the genuine query DocumentsUI makes when
+         * the user reaches the end of the list, which stops paging entirely.
          */
-        const val MIN_FETCH_INTERVAL_MS = 1_200L
+        const val MIN_FETCH_INTERVAL_MS = 800L
+
+        /**
+         * Ceiling on how much of the library a single folder will load.
+         *
+         * DocumentsUI cannot page lazily, so the practical choice is between loading a
+         * bounded prefix and loading everything. 400 is deep enough for "find a recent
+         * photo" and keeps an accidental open from scanning a 60k library; older items are
+         * reachable through albums or by searching once more is loaded.
+         */
+        const val MAX_LISTED = 400
 
         /** Recents is a shortcut surface; a few hundred entries is already generous. */
         const val RECENT_LIMIT = 200

@@ -79,4 +79,27 @@
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
 
+    <!--
+        ===================================================================
+        Intent forwarding in the picker bridge
+        ===================================================================
+
+        SafPickerBridgeActivity is exported on purpose: the system photo picker only lists
+        apps that answer the intent, so being callable is the entire point. It therefore
+        receives an intent from an untrusted caller, which is what the check is warning
+        about.
+
+        The forwarded intent is not the caller's. It is built from scratch with
+        ACTION_OPEN_DOCUMENT, and only three values are carried over — the MIME type, the
+        MIME type list and EXTRA_ALLOW_MULTIPLE — each re-validated against an allowlist in
+        sanitizeType/sanitizeTypes. No component, data URI, action, flag or other extra is
+        reused, so there is no confused-deputy path to sanitise.
+
+        Lint cannot verify this because the taint propagates through getStringArrayExtra,
+        so the finding is acknowledged here rather than silenced at the call site.
+    -->
+    <issue id="UnsafeIntentLaunch">
+        <ignore path="src/main/kotlin/dev/immich/picker/ui/SafPickerBridgeActivity.kt" />
+    </issue>
+
 </lint>

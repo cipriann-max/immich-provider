@@ -38,18 +38,45 @@
         </activity>
 
         <!--
-            NOTE: there is deliberately no custom picker activity here.
+            Discoverability bridge for pickers that list apps instead of SAF roots.
 
-            An earlier version shipped one, registered for GET_CONTENT. That produced two
-            different experiences for the same library: the app's own date-ordered grid for
-            GET_CONTENT callers, and the DocumentsUI root below for OPEN_DOCUMENT callers.
-            The grid could not reproduce that order anyway, because DocumentsUI owns the
-            sort of the root it renders, so the two paths would have drifted apart forever.
+            There are two chooser implementations on modern Android. DocumentsUI lists
+            provider *roots*, so the root below is enough for both GET_CONTENT and
+            OPEN_DOCUMENT. The system photo picker, however, lists *apps that answer the
+            intent* and shows no roots at all — so a provider-only app is invisible in it,
+            which is where media uploads from browsers such as Firefox land.
 
-            Everything now goes through the single SAF root: one layout, one sort order, one
-            set of behaviours, on both actions. DocumentsUI is reached through the provider
-            below, and GET_CONTENT callers find the same entry in their picker.
+            This activity has no UI of its own. It exists so those pickers list Immich, and
+            it immediately opens DocumentsUI at the Immich root, forwarding the result
+            unchanged. One interface, one sort order, on every path.
+
+            Registered for every MIME type, not just media. Narrow filters would make the
+            app invisible to callers that ask for application/* or */* — the original
+            reason Immich never appeared in document uploads. What the library can actually
+            serve is decided per request, inside the picker.
         -->
+        <activity
+            android:name=".ui.SafPickerBridgeActivity"
+            android:exported="true"
+            android:label="@string/provider_root_title"
+            android:theme="@style/Theme.ImmichPicker"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.OPEN_DOCUMENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
 
         <!--
             The Storage Access Framework entry point.

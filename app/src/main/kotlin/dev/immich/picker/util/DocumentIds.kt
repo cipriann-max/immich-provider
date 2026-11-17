@@ -11,8 +11,9 @@ package dev.immich.picker.util
  *
  * ```
  * root                  the 50 newest assets, with more loaded as you scroll
- * └── albums            one folder per album
- *     └── album:<id>    that album's assets, paged the same way
+ * ├── albums            one folder per album
+ * │   └── album:<id>    that album's assets, paged the same way
+ * └── favorites         assets marked as favourite, paged the same way
  * ```
  *
  * The timeline lives *in* the root rather than in a `timeline` subfolder. That saves a tap
@@ -28,6 +29,9 @@ object DocumentIds {
 
     /** Folder holding one directory per album. */
     const val ALBUMS_DOCUMENT_ID: String = "albums"
+
+    /** Folder holding every asset marked as a favourite. */
+    const val FAVORITES_DOCUMENT_ID: String = "favorites"
 
     /** Prefix that marks a document id as an album directory. */
     const val ALBUM_PREFIX: String = "album:"
@@ -64,6 +68,9 @@ object DocumentIds {
     /** True when [documentId] names the albums folder. */
     fun isAlbums(documentId: String): Boolean = documentId == ALBUMS_DOCUMENT_ID
 
+    /** True when [documentId] names the favourites folder. */
+    fun isFavorites(documentId: String): Boolean = documentId == FAVORITES_DOCUMENT_ID
+
     /** True when [documentId] names an album directory. */
     fun isAlbum(documentId: String): Boolean = albumIdOf(documentId) != null
 
@@ -73,13 +80,14 @@ object DocumentIds {
     /**
      * True when [documentId] lists assets.
      *
-     * The root does, because the timeline lives there; so does any album. The albums
-     * folder does not — it lists folders.
+     * The root does, because the timeline lives there; so do favourites and any album.
+     * The albums folder does not — it lists folders.
      */
     fun listsAssets(documentId: String): Boolean =
-        isRoot(documentId) || isAlbum(documentId)
+        isRoot(documentId) || isFavorites(documentId) || isAlbum(documentId)
 
-    /** True for every directory this provider exposes: root, albums, one album. */
+    /** True for every directory this provider exposes. */
     fun isDirectory(documentId: String): Boolean =
-        isRoot(documentId) || isAlbums(documentId) || isAlbum(documentId)
+        isRoot(documentId) || isAlbums(documentId) || isFavorites(documentId) ||
+            isAlbum(documentId)
 }

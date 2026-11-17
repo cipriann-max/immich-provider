@@ -93,23 +93,42 @@ class DocumentIdsTest {
     }
 
     @Test
+    fun `the favourites folder lists assets`() {
+        assertTrue(DocumentIds.isFavorites(DocumentIds.FAVORITES_DOCUMENT_ID))
+        assertTrue(DocumentIds.isDirectory(DocumentIds.FAVORITES_DOCUMENT_ID))
+        assertTrue(DocumentIds.listsAssets(DocumentIds.FAVORITES_DOCUMENT_ID))
+        assertFalse(DocumentIds.isAsset(DocumentIds.FAVORITES_DOCUMENT_ID))
+    }
+
+    @Test
     fun `the fixed folders are distinguishable`() {
         assertFalse(DocumentIds.isRoot(DocumentIds.ALBUMS_DOCUMENT_ID))
         assertFalse(DocumentIds.isAlbums(DocumentIds.ROOT_DOCUMENT_ID))
+        assertFalse(DocumentIds.isFavorites(DocumentIds.ALBUMS_DOCUMENT_ID))
+        assertFalse(DocumentIds.isAlbums(DocumentIds.FAVORITES_DOCUMENT_ID))
+        assertFalse(DocumentIds.isRoot(DocumentIds.FAVORITES_DOCUMENT_ID))
     }
 
     @Test
     fun `the fixed folder ids are distinct strings`() {
         // A collision would make the timeline render the album list, or vice versa.
-        val ids = setOf(DocumentIds.ROOT_DOCUMENT_ID, DocumentIds.ALBUMS_DOCUMENT_ID)
-        assertEquals(2, ids.size)
+        val ids = setOf(
+            DocumentIds.ROOT_DOCUMENT_ID,
+            DocumentIds.ALBUMS_DOCUMENT_ID,
+            DocumentIds.FAVORITES_DOCUMENT_ID,
+        )
+        assertEquals(3, ids.size)
     }
 
     @Test
     fun `folder ids are not confused with asset or album documents`() {
-        listOf(DocumentIds.ROOT_DOCUMENT_ID, DocumentIds.ALBUMS_DOCUMENT_ID).forEach { id ->
+        listOf(
+            DocumentIds.ROOT_DOCUMENT_ID,
+            DocumentIds.ALBUMS_DOCUMENT_ID,
+            DocumentIds.FAVORITES_DOCUMENT_ID,
+        ).forEach { id ->
             assertFalse("$id is not an asset", DocumentIds.isAsset(id))
-            // "albums" (no prefix) must not parse as an album document.
+            // "albums" and "favorites" (no prefix) must not parse as album documents.
             assertNull(DocumentIds.albumIdOf(id))
         }
     }
