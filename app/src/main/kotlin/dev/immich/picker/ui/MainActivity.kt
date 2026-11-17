@@ -15,6 +15,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.immich.picker.data.ImmichService
 
+/**
+ * Settings and sign-in.
+ *
+ * Also the target of DocumentsUI's per-root settings arrow: the provider advertises
+ * [android.provider.DocumentsContract.ACTION_DOCUMENT_ROOT_SETTINGS] and this activity
+ * answers it, so a signed-out user can reach sign-in directly from the file picker rather
+ * than having to find the launcher icon.
+ */
 class MainActivity : ComponentActivity() {
 
     private val viewModel: SettingsViewModel by viewModels()
@@ -24,11 +32,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Deliberately NOT enableEdgeToEdge(), for the same reason as PickerActivity:
-        // Scaffold's TopAppBar does not apply statusBarsPadding() here, so drawing under
-        // the status bar hid the title behind the clock and notification icons. Letting
-        // the system own the insets keeps the header readable in gesture and 3-button
-        // navigation alike.
+        // Deliberately NOT enableEdgeToEdge(): Scaffold's TopAppBar does not apply
+        // statusBarsPadding() here, so drawing under the status bar hid the title behind
+        // the clock and notification icons. Letting the system own the insets keeps the
+        // header readable in gesture and 3-button navigation alike.
 
         ImmichService.initialize(this)
         PickerNotifications.ensureChannels(this)

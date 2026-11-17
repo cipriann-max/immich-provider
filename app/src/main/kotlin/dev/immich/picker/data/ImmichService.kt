@@ -1,5 +1,6 @@
 package dev.immich.picker.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import dev.immich.picker.BuildConfig
@@ -28,6 +29,12 @@ object ImmichService {
     @Volatile
     private var appContext: Context? = null
 
+    /**
+     * Context is only stored as [Context.getApplicationContext], which lives for the
+     * process lifetime anyway, so holding it in this singleton leaks nothing. Lint cannot
+     * tell the difference from the field type alone.
+     */
+    @SuppressLint("StaticFieldLeak")
     lateinit var credentialStore: CredentialStore
         private set
 

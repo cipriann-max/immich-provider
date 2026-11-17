@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -35,8 +36,8 @@ object PickerNotifications {
     private const val ID_INCOMPATIBLE = 1003
     private const val ID_VERSION = 1004
 
+    /** minSdk is 26, so channels always exist; no version guard is needed. */
     fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
 
         manager.createNotificationChannel(
@@ -108,6 +109,11 @@ object PickerNotifications {
         )
     }
 
+    /**
+     * Lint cannot see that [canPostNotifications] already guards this call, so the
+     * permission check is asserted here rather than duplicated.
+     */
+    @SuppressLint("MissingPermission")
     private fun notify(
         context: Context,
         id: Int,

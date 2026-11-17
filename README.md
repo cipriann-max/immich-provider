@@ -30,25 +30,29 @@ internally — that is a source-code detail with no user-visible effect. The pub
 Sign in once with your server URL and either your email/password or an API key. After that,
 Immich appears as a source wherever Android asks for a file.
 
-The picker is the app's own screen, not Android's generic file browser. That is deliberate:
-a `DocumentsProvider` cannot control layout or sort order, and DocumentsUI always sorts folders
-alphabetically regardless of what the provider returns. Owning the picker means your library
-opens **newest first**, in a two-column grid, with album navigation.
+The app contributes **one Storage Access Framework root**. Whether the calling app uses
+`GET_CONTENT` or `OPEN_DOCUMENT`, you browse the same tree in the same UI:
+
+```
+Immich              the newest 50 photos and videos, newest first
+└── Albums          one folder per album
+```
+
+Opening the root shows the 50 most recent files; scrolling loads another 50, and so on up to
+the whole library. Files are numbered from `0001` in view order so the list is chronological
+by default — see [Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix).
 
 ### Screens
 
 | Screen | Purpose |
 |---|---|
 | Settings | Server URL, credentials, connection test, cache size, clear cache, sign out |
-| Picker | Tabbed **Timeline** and **Albums**, two-column grid, multi-select, sort toggle, cog to Settings |
+| DocumentsUI (system) | The root above: newest-first grid, paging, Albums folder |
 
-The picker's top bar has a **cog** on the right, next to the sort toggle, that opens
-Settings. It is present in every picker state — including the "not signed in" prompt and
-DocumentsUI browsing mode — because Settings is the only place a rejected credential can be
-fixed without leaving the app.
-
-Timeline and album contents are cursor-paged 120 at a time, so a 60k-photo library opens as
-fast as a small one.
+There is no custom picker screen. An earlier version had one for `GET_CONTENT`, which made the
+library look different depending on which action the calling app used; it was removed so both
+paths behave identically. Settings is reachable from DocumentsUI through the root's settings
+affordance, and from the app's launcher icon.
 
 ---
 
@@ -340,18 +344,35 @@ If your server uses a self-signed certificate, open **Certificate options** in S
 
 ## How to reach Immich in a picker
 
-1. In the app you are using, tap its attach/file button.
-2. Android shows a picker. If you only see the system photo picker, look for a menu (⋮) or a
-   **Browse…** / **Files** entry — Chrome and some other apps open the photo picker first by
-   default, and it has no way to show third-party providers.
-3. Choose **Immich File Picker** from the source list.
+Whatever action the calling app uses, you get the same place:
 
-The picker is registered for **every** MIME type, not just `image/*` and `video/*`, so it also
-appears in generic "attach a file" sheets — chat apps, e-mail clients, browser upload forms that
-accept documents. Because an Immich library only contains photos and videos, the grid is
-filtered against exactly what the caller asked for (`image/*`, a concrete type, or the
+1. In the app you are using, tap its attach/file button.
+2. If you only see the system photo picker, look for a menu (⋮) or a **Browse…** / **Files**
+   entry — Chrome and some other apps open the photo picker first by default, and it has no way
+   to show third-party providers.
+3. Tap **Immich** under *Browse files in other apps*.
+
+`GET_CONTENT` and `OPEN_DOCUMENT` are both routed to DocumentsUI, and both find this app
+through its provider root. There is no separate in-app picker to choose between, so there is
+exactly one Immich entry and one layout.
+
+### Why there is no custom picker any more
+
+Earlier versions shipped their own `GET_CONTENT` activity, which had two problems. It could not
+be reached from `OPEN_DOCUMENT` at all — that action is reserved for the system
+`DocumentsUI`, and even `android:priority="1000"` does not change the resolution (verified
+on-device). Worse, it meant the same library rendered differently depending on which action the
+caller used, and the two could never agree on ordering because DocumentsUI owns the sort of any
+root it displays. Deleting it left one surface to maintain and one behaviour to explain.
+
+### Types
+
+The root is registered for **every** MIME type, not just `image/*` and `video/*`, so it appears
+in generic "attach a file" sheets — chat apps, e-mail clients, browser upload forms that accept
+documents. Because an Immich library only contains photos and videos, the type is filtered
+against exactly what the caller asked for (`image/*`, a concrete type, or the
 `EXTRA_MIME_TYPES` list). If the caller only accepts a type Immich cannot supply, such as
-`application/pdf`, the app says so instead of showing a grid where nothing is selectable.
+`application/pdf`, the root says so instead of showing a list where nothing is selectable.
 
 Immich does **not** appear as an icon inside the system photo picker. That integration
 requires a `CloudMediaProvider` plus an ADB allowlist override, which this app deliberately
@@ -363,8 +384,12 @@ avoids. The SAF/file-picker route needs no special privileges and works everywhe
 
 ### Sorting
 
-The grid sorts newest-first by default, using Immich's own ordering so that paging stays
-consistent. Tapping the sort icon switches to oldest-first.
+The list reads newest-first by default. Assets are requested from Immich newest-first, sorted
+again locally, and numbered so that DocumentsUI's name sort agrees with that order — see
+[Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix).
+
+DocumentsUI's own sort menu still works and can reorder the list; choosing anything other than
+**File name (A to Z)** will disagree with the numbering shown.
 
 ### Caching
 
@@ -412,28 +437,64 @@ you which endpoint disagreed and what version answered.
 The version this build was generated from and tested against is compiled into
 `BuildConfig.TESTED_IMMICH_VERSION` and is currently **3.4.1**.
 
-### What the picker is registered for
+### What the app registers
 
-| Action | MIME types | Effect |
-|---|---|---|
-| `GET_CONTENT` | `*/*` | Appears in every generic file chooser and photo picker that honours SAF |
-| `OPEN_DOCUMENT` | `*/*` | Same, for callers that want a persistable grant |
+| Component | What it does |
+|---|---|
+| `ImmichDocumentsProvider` | The SAF root — the picker surface for both `GET_CONTENT` and `OPEN_DOCUMENT` |
+| `MainActivity` | Settings, also the target of DocumentsUI's root settings affordance |
 
-The filters deliberately do **not** list only `image/*` and `video/*`. Narrow filters make the
-app invisible to any caller that asks for `application/*` or `*/*`, which is why Immich never
-showed up for document uploads. Type filtering is done inside the picker instead, where the
-caller's exact request is known.
+Nothing is registered for `GET_CONTENT` or `OPEN_DOCUMENT` directly: DocumentsUI supplies the
+UI and finds this app through the root. Type filtering happens per request, where the caller's
+exact request is known.
+
+### The DocumentsUI root
+
+Opening **Immich** in DocumentsUI shows the **50 newest assets**, with an **Albums** folder
+mixed in for navigating by album. Scrolling loads another 50, then another, up to the whole
+library. Each page returns what has arrived plus `EXTRA_LOADING`, and the next page is fetched
+when DocumentsUI asks again.
+
+The root is always present, even signed out: its summary then says a sign-in is needed, and the
+sign-in screen is one tap away. Timeline and Albums open to that message rather than looking
+broken.
+
+### Why file names get a numeric prefix
+
+Files in the picker are displayed as `0001_IMG_20261117_154600.jpg`,
+`0002_IMG_20261117_154331.jpg`, and so on. **This is cosmetic.** It is not a rename on your
+server, and it does not change the file you attach.
+
+The cause is a platform constraint. DocumentsUI applies **its own sort** to whatever a
+`DocumentsProvider` returns, defaulting to **"File name (A to Z)"**, and ignores the order of
+the rows themselves. Since camera filenames start with a date, A–Z is chronological *ascending*
+— a photo library would open at the oldest picture. No provider-side ordering can override
+this; it was confirmed on-device by logging the cursor (assets returned newest-first,
+`WA0010 → WA0009 → WA0008`) and watching DocumentsUI render them as Sep 19, Sep 23, Sep 25.
+
+The one lever a provider has is the name, because that is what the sort compares. Numbering the
+rows `0001`, `0002`, … makes A–Z *identical* to newest-first, so the default view is correct
+with no tap and no setting to remember.
+
+The prefix is applied in exactly one place — the folder listing that fills the grid. The name
+returned when a picked file is opened comes from a separate call and is left untouched, so the
+receiving app sees the real filename. The file's bytes are never modified either way.
+
+If the prefix bothers you, the alternative is one tap: ⋮ → **Sort by…** → **Modified (newest
+first)** would order correctly without it, but DocumentsUI forgets that choice between launches,
+so the default is wrong again next time.
 
 ### Known limitations
 
 - **No system photo-picker integration.** See above; it needs a `CloudMediaProvider` and an
   ADB allowlist.
-- **No folder browsing inside the picker.** You get Timeline, Albums and Favorites as tabs,
-  which is what a file picker needs.
-- **Search is limited** to already-loaded grids.
+- **Displayed filenames carry a numeric prefix.** Cosmetic, and explained above; the attached
+  file keeps its real name.
+- **The tree is two levels.** The root lists recent assets plus one Albums folder. There is no
+  year/month nesting and no Favorites folder.
+- **Search is limited** to what has already been loaded in this session.
 - **Single server per install.** Multi-server would need a credential-per-root model.
-- **Portrait and landscape are not separately tuned**; the grid reflows but the layout is
-  designed for phones.
+- **The picker is DocumentsUI.** Its layout, grid density and sort menu are not ours to change.
 - **No upload, delete, rename or edit**, by design. There is no write path in the provider at
   all.
 - **Album covers cache under a `nohash` key.** If an album's cover changes, that one cover
@@ -452,7 +513,7 @@ reached from real user actions — nothing here is speculative.
 | `POST` | `/api/auth/login` | Signing in with email and password |
 | `GET` | `/api/users/me` | Validating the credential and reading your name and email; requires `user.read` |
 | `GET` | `/api/albums` | Opening the Albums tab |
-| `POST` | `/api/search/metadata` | Paging the Timeline, an album, or Favorites |
+| `POST` | `/api/search/metadata` | Paging the timeline or an album |
 | `GET` | `/api/assets/{id}` | Resolving metadata for a document URI the picker handed out |
 | `GET` | `/api/assets/{id}/original` | The file itself, when you pick an asset |
 | `GET` | `/api/assets/{id}/thumbnail` | Grid and album-cover thumbnails |
@@ -545,26 +606,26 @@ app/src/main/kotlin/dev/immich/picker/
 │   ├── ThumbnailCache.kt   200 MB LRU disk cache
 │   └── OriginalCache.kt    500 MB + 30 min TTL
 ├── provider/
-│   └── ImmichDocumentsProvider.kt  Serves content:// URIs (rootless, read-only)
+│   └── ImmichDocumentsProvider.kt  SAF root, paging, content:// URIs (read-only)
 ├── util/
-│   └── MimeFilters.kt      Caller MIME parsing and asset matching
+│   ├── DocumentIds.kt      Document-id scheme for root/albums/assets
+│   ├── MimeFilters.kt      Caller MIME parsing and asset matching
+│   └── RankedNames.kt      Numeric prefixes that pin DocumentsUI's sort order
 ├── ui/
-│   ├── MainActivity.kt         Settings entry point
+│   ├── MainActivity.kt         Settings, and DocumentsUI's root settings target
 │   ├── SettingsScreen.kt       Compose login/status/cache UI
 │   ├── SettingsViewModel.kt    Login, validation, version checks
-│   ├── PickerNotifications.kt  Auth/version/network notifications
-│   └── picker/
-│       ├── PickerActivity.kt   The picker; returns content:// URIs
-│       ├── PickerScreen.kt     Compose grid, tabs, album list
-│       ├── PickerViewModel.kt  Paging, selection, sort state
-│       └── ThumbnailLoader.kt  Memory LRU over the disk cache
+│   └── PickerNotifications.kt  Auth/version/network notifications
 └── tools/openapi/
     ├── generate_models.py          Spec → Kotlin generator
     └── immich-v3.4.1.json          Vendored spec
 
 app/src/test/kotlin/dev/immich/picker/
 ├── net/ApiFailuresTest.kt      Status mapping: 401 vs 403, permission naming
-└── util/MimeFiltersTest.kt     Caller MIME parsing and matching rules
+└── util/
+    ├── DocumentIdsTest.kt      SAF document-id round trip and edge cases
+    ├── MimeFiltersTest.kt      Caller MIME parsing and matching rules
+    └── RankedNamesTest.kt      Prefix width and sort-reproducing order
 ```
 
 ### Icon assets
@@ -582,14 +643,25 @@ resources were generated from:
 Keep the source PNG so the icons can be regenerated at other densities or with a changed
 inset, rather than upscaling a small derivative.
 
-### Why the DocumentsProvider has no root
+### Why the DocumentsProvider is the whole UI
 
-`queryRoots()` returns nothing on purpose. A root makes DocumentsUI render its **own** browser
-for Immich with a layout and sort order you cannot control, which produces a second, worse
-picker alongside this one. The provider still does the important work: it resolves
-`content://com.virtunio.immichpicker.documents/document/asset:<id>` and streams the original through
-`openDocument()`, so the receiving app reads bytes over a normal SAF grant. Nothing is copied
-anywhere and the provider never needs to be browsable.
+The provider does two jobs, and they are the reason it, rather than an activity, is the app's
+only picker:
+
+1. **Serving bytes.** It resolves
+   `content://com.virtunio.immichpicker.documents/document/asset:<id>` and streams the original
+   through `openDocument()`, so the receiving app reads bytes over a normal SAF grant. Nothing
+   is copied.
+2. **Being selectable.** DocumentsUI lists only provider *roots* for `OPEN_DOCUMENT` — an
+   activity cannot be the system picker for that action, and `android:priority` does not help.
+   A root is the only way to be offered.
+
+Once the root exists, a second `GET_CONTENT` activity would be a competing implementation of
+the same library. Earlier versions had exactly that, and the two surfaces could never agree on
+ordering, because DocumentsUI re-sorts any root it renders. Removing the activity left one
+implementation, one layout and one set of behaviours.
+
+The root stays minimal: read-only, no `FLAG_SUPPORTS_CREATE`, no write path, two levels deep.
 
 ---
 

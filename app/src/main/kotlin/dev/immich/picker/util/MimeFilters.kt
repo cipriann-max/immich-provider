@@ -22,6 +22,9 @@ object MimeFilters {
      * the universal wildcard and put the real list in the extra. An empty result means
      * "no restriction".
      */
+    fun parseMany(extraTypes: Array<String>?): List<String> =
+        parse(type = null, extraTypes = extraTypes)
+
     fun parse(type: String?, extraTypes: Array<String>?): List<String> {
         val extra = extraTypes.orEmpty()
             .map { it.trim() }

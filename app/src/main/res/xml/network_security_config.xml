@@ -2,13 +2,26 @@
 <!--
     Immich servers commonly run on a home network over plain HTTP or with a
     self-signed certificate. Cleartext is therefore permitted for all hosts, and
-    user trust anchors are handled at runtime by TlsTrust in the OkHttp client.
-    No system-level exceptions are declared because the app's own client decides
-    whether to trust a given server.
+    user trust anchors are included so a CA installed by the user on the device is
+    honoured.
+
+    Both choices are deliberate and cannot be tightened without breaking the
+    self-hosted case this app exists for:
+
+      - cleartextTrafficPermitted: a LAN Immich on http://host:2283 is the default
+        deployment. Requiring HTTPS would exclude it entirely.
+      - certificates src="user": the "Custom CA (PEM)" option in Settings feeds the
+        app's own OkHttp client, but a user-installed CA is also needed for the
+        platform trust store path.
+
+    The stronger option — pinning or refusing user CAs in release — would make
+    "Custom CA" unusable. See the Security notes in README.md.
 -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <base-config
+        cleartextTrafficPermitted="true"
+        tools:ignore="InsecureBaseConfiguration">
+        <trust-anchors tools:ignore="AcceptsUserCertificates">
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>

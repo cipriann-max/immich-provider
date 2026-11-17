@@ -6,8 +6,17 @@
     inside the 72dp safe-zone circle on a 108dp canvas. Background is white rather than
     Immich blue, because the flower's lower-left petal is itself blue (#1E83F7) and
     disappeared against a blue background.
+
+    The monochrome layer is what Android 13+ themed icons use. It reuses the foreground
+    drawable: the system tints it, so no separate asset is required.
+
+    This stays in `mipmap-anydpi-v26` even though minSdk is 26 and the qualifier is
+    therefore redundant (lint: ObsoleteSdkInt, suppressed in app/lint.xml). Moving it to
+    `mipmap-anydpi` makes it collide with the per-density `ic_launcher.png` legacy icons
+    (lint: IconXmlAndPng), which is a worse trade.
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_launcher_background" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>

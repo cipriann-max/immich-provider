@@ -190,7 +190,9 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    // Needed for Icons.Filled in SettingsScreen. The *extended* set was only used by the
+    // removed in-app picker grid; the core set is what remains necessary.
+    implementation("androidx.compose.material:material-icons-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.security:security-crypto:1.1.0")

@@ -2,6 +2,10 @@
 <resources>
     <string name="app_name">Immich File Picker</string>
     <string name="provider_root_title">Immich</string>
+    <string name="provider_root_summary_signed_out">Signed out — open Immich File Picker to sign in</string>
+    <string name="provider_albums_title">Albums</string>
+    <string name="provider_albums_summary">Your Immich albums</string>
+    <string name="provider_sign_in_hint">Not signed in. Open Immich File Picker and sign in to browse your library.</string>
 
     <string name="notif_channel_errors">Connection problems</string>
     <string name="notif_channel_errors_desc">Shown when Immich File Picker cannot reach your server or your login expired.</string>

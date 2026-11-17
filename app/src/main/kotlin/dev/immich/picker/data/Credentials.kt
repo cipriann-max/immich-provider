@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
 import android.util.Log
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -112,33 +113,33 @@ class CredentialStore(private val context: Context) {
     }
 
     fun save(credentials: ImmichCredentials) {
-        prefs.edit()
-            .putString(KEY_SERVER_URL, credentials.serverUrl)
-            .putString(KEY_SECRET, credentials.secret)
-            .putString(KEY_AUTH_MODE, credentials.authMode.name)
-            .putString(KEY_USER_EMAIL, credentials.userEmail)
-            .putString(KEY_USER_NAME, credentials.userName)
-            .putString(KEY_SERVER_VERSION, credentials.serverVersion)
-            .putString(KEY_ACCOUNT_LABEL, credentials.accountLabel)
-            .apply()
+        prefs.edit {
+            putString(KEY_SERVER_URL, credentials.serverUrl)
+            putString(KEY_SECRET, credentials.secret)
+            putString(KEY_AUTH_MODE, credentials.authMode.name)
+            putString(KEY_USER_EMAIL, credentials.userEmail)
+            putString(KEY_USER_NAME, credentials.userName)
+            putString(KEY_SERVER_VERSION, credentials.serverVersion)
+            putString(KEY_ACCOUNT_LABEL, credentials.accountLabel)
+        }
     }
 
     /** Updates only the version string, used after a background version probe. */
     fun updateServerVersion(version: String?) {
-        prefs.edit().putString(KEY_SERVER_VERSION, version).apply()
+        prefs.edit { putString(KEY_SERVER_VERSION, version) }
     }
 
     fun clear() {
-        prefs.edit()
-            .remove(KEY_SERVER_URL)
-            .remove(KEY_SECRET)
-            .remove(KEY_AUTH_MODE)
-            .remove(KEY_USER_EMAIL)
-            .remove(KEY_USER_NAME)
-            .remove(KEY_SERVER_VERSION)
-            .remove(KEY_ACCOUNT_LABEL)
-            .putBoolean(KEY_LOGGED_OUT, true)
-            .apply()
+        prefs.edit {
+            remove(KEY_SERVER_URL)
+            remove(KEY_SECRET)
+            remove(KEY_AUTH_MODE)
+            remove(KEY_USER_EMAIL)
+            remove(KEY_USER_NAME)
+            remove(KEY_SERVER_VERSION)
+            remove(KEY_ACCOUNT_LABEL)
+            putBoolean(KEY_LOGGED_OUT, true)
+        }
     }
 
     fun options(): ConnectionOptions {
@@ -152,14 +153,14 @@ class CredentialStore(private val context: Context) {
     }
 
     fun saveOptions(options: ConnectionOptions) {
-        prefs.edit().apply {
+        prefs.edit {
             putBoolean(KEY_INSECURE_TLS, options.allowInsecureTls)
             if (options.customCaPem != null) {
                 putString(KEY_CA_PEM, Base64.encodeToString(options.customCaPem, Base64.NO_WRAP))
             } else {
                 remove(KEY_CA_PEM)
             }
-        }.apply()
+        }
     }
 
     /**
@@ -169,7 +170,7 @@ class CredentialStore(private val context: Context) {
     val wasLoggedOut: Boolean get() = prefs.getBoolean(KEY_LOGGED_OUT, false)
 
     fun markLoggedIn() {
-        prefs.edit().putBoolean(KEY_LOGGED_OUT, false).apply()
+        prefs.edit { putBoolean(KEY_LOGGED_OUT, false) }
     }
 
     private companion object {

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Lint configuration for this module.
+
+    Everything suppressed here is a deliberate product decision, not an oversight — each
+    entry carries the reason. Anything genuinely actionable is fixed in the code instead
+    of being silenced, so a warning that appears in a build log is worth reading.
+-->
+<lint>
+
+    <!--
+        ===================================================================
+        Icon shape
+        ===================================================================
+
+        The launcher bitmaps are the square Immich flower artwork, generated from
+        immich-provider.png. They intentionally fill the canvas and are paired with the
+        adaptive icon in mipmap-anydpi-v26, which supplies the mask on API 26+ — the only
+        API levels this app runs on. The legacy PNG therefore never renders unmasked in
+        practice, so padding it would only shrink the artwork where it *is* used.
+    -->
+    <issue id="IconLauncherShape" severity="ignore" />
+
+    <!--
+        `roundIcon` was removed from the manifest: it pointed at the same square bitmap as
+        `icon`, which is what IconLauncherShape flagged, and the adaptive icon already
+        provides the circular treatment.
+
+        The `mipmap-anydpi-v26` folder stays even though minSdk is 26, so the qualifier is
+        redundant (ObsoleteSdkInt). Moving it to `mipmap-anydpi` makes the adaptive XML
+        collide with the per-density legacy `ic_launcher.png` files, which is a worse
+        problem than a redundant qualifier. Ignored here rather than by an inline
+        tools:ignore, because a directory has no root element to annotate.
+    -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+
+    <!--
+        ===================================================================
+        Network security
+        ===================================================================
+
+        Cleartext HTTP and user-installed CAs are required, not accidental:
+
+          - A LAN Immich at http://192.168.x.x:2283 is the default self-hosted setup.
+          - The "Custom CA (PEM)" setting exists precisely so a user-supplied CA can be
+            trusted. Refusing user anchors would make that feature impossible.
+
+        Both are documented in README.md under "Security notes". See also the inline
+        justification in res/xml/network_security_config.xml.
+    -->
+    <issue id="InsecureBaseConfiguration" severity="ignore" />
+    <issue id="AcceptsUserCertificates" severity="ignore" />
+
+    <!--
+        TlsTrust installs a custom X509TrustManager for the two opt-in modes (accept any
+        certificate / trust one PEM). It is the only way to express "trust exactly this
+        CA" through OkHttp without writing the trust store to disk. It is not used for the
+        default configuration, which goes through the platform trust manager.
+    -->
+    <issue id="CustomX509TrustManager" severity="ignore" />
+
+    <!--
+        ===================================================================
+        Dependency freshness
+        ===================================================================
+
+        Both checks compare against whatever is newest on the network at build time, which
+        makes them fail on a schedule unrelated to this project and would otherwise turn a
+        green build red with no code change.
+
+        Versions are pinned deliberately in app/build.gradle.kts, each with a comment
+        explaining the ceiling (for example: Compose BOM 2026.06.01 is the newest that does
+        not require compileSdk 37, and okhttp 5.5+ wants compileSdk 37 as well). Updating
+        them is a planned task with a compileSdk bump, not a side effect of running lint.
+    -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+
+</lint>

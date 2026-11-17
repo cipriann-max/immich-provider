@@ -94,27 +94,7 @@ class ImmichRepository(
         return api.searchAssets(body = body).toPage()
     }
 
-    /**
-     * One page of favourites, newest first.
-     *
-     * Uses the v3 `filter` object rather than the deprecated top-level
-     * `isFavorite`/`type` fields, which Immich removed from the search DTO.
-     */
-    suspend fun favoriteAssets(
-        cursor: String? = null,
-        pageSize: Int = PAGE_SIZE,
-        newestFirst: Boolean = true,
-    ): AssetPage {
-        val body = searchBody(
-            cursor = cursor,
-            pageSize = pageSize,
-            newestFirst = newestFirst,
-            filter = SearchFilter(isFavorite = BoolFilter(eq = true)),
-        )
-        return api.searchAssets(body = body).toPage()
-    }
-
-    /** Everything, for the "All" pseudo-folder fallback and search. */
+    /** Everything, for the timeline and for search. */
     suspend fun allAssets(
         cursor: String? = null,
         pageSize: Int = PAGE_SIZE,
