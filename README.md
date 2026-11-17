@@ -13,7 +13,7 @@ It is a **standalone, read-only** client. It does not touch the official Immich 
 upload, delete or edit anything, and needs no root, no ADB and no allowlist overrides.
 
 - **Package:** `com.virtunio.immichpicker`
-- **Version:** `1.0.0`
+- **Version:** `1.1.0` — see [CHANGELOG.md](CHANGELOG.md)
 - **Publisher:** Virtunio Ltd
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
@@ -34,21 +34,27 @@ The app contributes **one Storage Access Framework root**. Whether the calling a
 `GET_CONTENT` or `OPEN_DOCUMENT`, you browse the same tree in the same UI:
 
 ```
-Immich              the newest 50 photos and videos, newest first
-└── Albums          one folder per album
+Immich              the newest photos and videos, newest first
+├── Albums          one folder per album, most recently active first
+└── Favorites       starred photos and videos
 ```
 
-Opening the root shows the 50 most recent files; scrolling loads another 50, and so on up to
-the whole library. Files are numbered from `0001` in view order so the list is chronological
-by default — see [Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix).
-Assets in the trash are excluded.
+Opening the root shows the 50 most recent files; further pages load in the background as
+DocumentsUI re-queries, up to **400 assets per folder**. Files are numbered from `0001` in
+view order so the list is chronological by default — see
+[Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix). Assets in the
+trash are excluded.
+
+A small bridge activity also makes the app visible to choosers that list *apps* rather than
+SAF roots — the system photo picker some browsers use for media uploads. It has no UI of its
+own: it opens the same root and forwards the result unchanged.
 
 ### Screens
 
 | Screen | Purpose |
 |---|---|
 | Settings | Server URL, credentials, connection test, cache size, clear cache, sign out |
-| DocumentsUI (system) | The root above: newest-first grid, paging, Albums folder |
+| DocumentsUI (system) | The root above: newest-first grid, paging, Albums and Favorites |
 
 There is no custom picker screen. An earlier version had one for `GET_CONTENT`, which made the
 library look different depending on which action the calling app used; it was removed so both
@@ -100,7 +106,7 @@ Use [`release.sh`](release.sh). It builds, signs, verifies the signature and sta
 APK with a checksum — no GitHub and no CI required:
 
 ```bash
-./release.sh            # version from app/build.gradle.kts (currently 1.0.0)
+./release.sh            # version from app/build.gradle.kts (currently 1.1.0)
 ./release.sh 1.2.3      # explicit version name; versionCode derived as 10203
 ./release.sh 1.2.3 7    # explicit name and code
 ```
@@ -108,8 +114,8 @@ APK with a checksum — no GitHub and no CI required:
 Output:
 
 ```
-dist/immich-file-picker-1.0.0.apk
-dist/immich-file-picker-1.0.0.apk.sha256
+dist/immich-file-picker-1.1.0.apk
+dist/immich-file-picker-1.1.0.apk.sha256
 ```
 
 The script refuses to finish if the APK is unsigned, or if it is signed by a certificate
@@ -180,7 +186,7 @@ Verify any APK's publisher yourself:
 
 ```bash
 "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs \
-  dist/immich-file-picker-1.0.0.apk
+  dist/immich-file-picker-1.1.0.apk
 ```
 
 ### Publishing with GitHub Actions
@@ -195,8 +201,8 @@ Two workflows:
 Cutting a release is tagging:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 The tag is the single source of truth: `release.yml` strips the leading `v`, sets
@@ -348,14 +354,16 @@ If your server uses a self-signed certificate, open **Certificate options** in S
 Whatever action the calling app uses, you get the same place:
 
 1. In the app you are using, tap its attach/file button.
-2. If you only see the system photo picker, look for a menu (⋮) or a **Browse…** / **Files**
-   entry — Chrome and some other apps open the photo picker first by default, and it has no way
-   to show third-party providers.
-3. Tap **Immich** under *Browse files in other apps*.
+2. Look for **Immich**. Two chooser styles exist, and the app appears in both:
+   - **DocumentsUI** lists provider roots, so **Immich** is under *Browse files in other apps*.
+   - **The system photo picker** lists apps that answer the intent. Some browsers open it first
+     for media uploads; **Immich** appears in its app list and opens the same root when tapped.
+3. If you only see your own gallery, use a menu (⋮) or a **Browse…** / **Files** entry to reach
+   a full file chooser.
 
 `GET_CONTENT` and `OPEN_DOCUMENT` are both routed to DocumentsUI, and both find this app
 through its provider root. There is no separate in-app picker to choose between, so there is
-exactly one Immich entry and one layout.
+exactly one Immich layout.
 
 ### Why there is no custom picker any more
 
@@ -366,6 +374,10 @@ on-device). Worse, it meant the same library rendered differently depending on w
 caller used, and the two could never agree on ordering because DocumentsUI owns the sort of any
 root it displays. Deleting it left one surface to maintain and one behaviour to explain.
 
+What replaced it is a root for the roots-based chooser, plus a **UI-less bridge activity** for
+the app-list-based one. The bridge renders nothing, opens DocumentsUI at the Immich root and
+forwards the result untouched, so it adds reach without adding a second interface.
+
 ### Types
 
 The root is registered for **every** MIME type, not just `image/*` and `video/*`, so it appears
@@ -375,9 +387,11 @@ against exactly what the caller asked for (`image/*`, a concrete type, or the
 `EXTRA_MIME_TYPES` list). If the caller only accepts a type Immich cannot supply, such as
 `application/pdf`, the root says so instead of showing a list where nothing is selectable.
 
-Immich does **not** appear as an icon inside the system photo picker. That integration
-requires a `CloudMediaProvider` plus an ADB allowlist override, which this app deliberately
-avoids. The SAF/file-picker route needs no special privileges and works everywhere.
+Immich does **not** appear as a *native media provider* inside the system photo picker. That
+integration requires a `CloudMediaProvider` plus an ADB allowlist override, which this app
+deliberately avoids. What it does instead is answer the picker's intent through the bridge
+activity, so the app is selectable and hands off to the SAF root. The SAF/file-picker route
+needs no special privileges and works everywhere.
 
 ---
 
@@ -443,17 +457,20 @@ The version this build was generated from and tested against is compiled into
 | Component | What it does |
 |---|---|
 | `ImmichDocumentsProvider` | The SAF root — the picker surface for both `GET_CONTENT` and `OPEN_DOCUMENT` |
+| `SafPickerBridgeActivity` | UI-less bridge so app-list pickers show Immich; opens the root and forwards the result |
 | `MainActivity` | Settings, also the target of DocumentsUI's root settings affordance |
 
-Nothing is registered for `GET_CONTENT` or `OPEN_DOCUMENT` directly: DocumentsUI supplies the
-UI and finds this app through the root. Type filtering happens per request, where the caller's
-exact request is known.
+`SafPickerBridgeActivity` is registered for `GET_CONTENT` and `OPEN_DOCUMENT` on `*/*`, which
+is what makes the app appear in choosers that enumerate activities. It shows no UI: it
+re-validates the caller's MIME types, opens DocumentsUI at the Immich root, and returns the
+result verbatim. The provider root remains the only place the library is rendered, so type
+filtering still happens per request, where the caller's exact request is known.
 
 ### The DocumentsUI root
 
 ```
 Immich              the newest assets, newest first
-├── Albums          one folder per album
+├── Albums          one folder per album, most recently active first
 └── Favorites       starred assets
 ```
 
@@ -497,12 +514,12 @@ so the default is wrong again next time.
 
 ### Known limitations
 
-- **No system photo-picker integration.** See above; it needs a `CloudMediaProvider` and an
-  ADB allowlist.
+- **No native system photo-picker integration.** The app is reachable through the bridge
+  activity, but it is not a `CloudMediaProvider`; that would need an ADB allowlist.
 - **Displayed filenames carry a numeric prefix.** Cosmetic, and explained above; the attached
   file keeps its real name.
-- **The tree is two levels.** The root lists recent assets plus Albums and Favorites folders.
-  There is no year/month nesting.
+- **The tree has no year/month nesting.** It is root → Albums → album → assets, plus the
+  Favorites folder at the root.
 - **Each folder stops at 400 assets.** See the root section above for why more cannot be paged
   lazily.
 - **The trash is excluded, not browsable.** Deleted items are filtered out rather than offered
@@ -600,6 +617,7 @@ What is *not* resilient is a removed or retyped field. That surfaces as an expli
 
 ```
 release.sh                      Build + sign + verify a release APK (no CI needed)
+CHANGELOG.md                    Release notes, Keep a Changelog format
 .github/workflows/ci.yml        Tests and debug build on push/PR
 .github/workflows/release.yml   Tag-driven signed release with GitHub Release
 
@@ -661,8 +679,8 @@ inset, rather than upscaling a small derivative.
 
 ### Why the DocumentsProvider is the whole UI
 
-The provider does two jobs, and they are the reason it, rather than an activity, is the app's
-only picker:
+The provider does two jobs, and they are the reason it, rather than an activity, is where the
+library is rendered:
 
 1. **Serving bytes.** It resolves
    `content://com.virtunio.immichpicker.documents/document/asset:<id>` and streams the original
@@ -677,7 +695,8 @@ the same library. Earlier versions had exactly that, and the two surfaces could 
 ordering, because DocumentsUI re-sorts any root it renders. Removing the activity left one
 implementation, one layout and one set of behaviours.
 
-The root stays minimal: read-only, no `FLAG_SUPPORTS_CREATE`, no write path, two levels deep.
+The root stays minimal: read-only, no `FLAG_SUPPORTS_CREATE`, no write path. The bridge
+activity is the one component that answers intents directly, and it only forwards.
 
 ---
 

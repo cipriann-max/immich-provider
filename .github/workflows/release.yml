@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version name to build (e.g. 1.0.0). Defaults to the tag or gradle default.'
+        description: 'Version name to build (e.g. 1.1.0). Defaults to the tag or the gradle default.'
         required: false
         type: string
 
@@ -45,8 +45,10 @@ jobs:
           if [ -z "$RAW" ] && [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             RAW="${GITHUB_REF_NAME#v}"
           fi
+          # Last-resort fallback, used only for a manual dispatch with no version input
+          # and no tag. Keep in step with defaultVersionName in app/build.gradle.kts.
           if [ -z "$RAW" ]; then
-            RAW="1.0.0"
+            RAW="1.1.0"
           fi
           # major * 10000 + minor * 100 + patch, matching app/build.gradle.kts
           BASE="${RAW%%-*}"
@@ -190,25 +192,45 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           VERSION="${{ steps.version.outputs.name }}"
-          NOTES="Signed release of Immich File Picker ${VERSION}.
 
-          Publisher: Virtunio Ltd
-          Package: com.virtunio.immichpicker
-          Minimum Android: 8.0 (API 26)
+          # Release body = the matching CHANGELOG.md section, so the notes describe what
+          # actually changed instead of repeating a generic blurb. The section runs from
+          # "## [<version>]" to the next "## [". If it is missing (a version bumped in the
+          # build script but never written up), the release still publishes and says so.
+          SECTION=""
+          if [ -f CHANGELOG.md ]; then
+            # Link-reference definitions at the bottom of the file (e.g. "[1.1.0]: https://…")
+            # are not part of the prose, so they are dropped rather than pasted into the notes.
+            SECTION="$(awk -v want="## [${VERSION}]" '
+              index($0, want) == 1 { capture = 1; next }
+              capture && /^## \[/ { exit }
+              capture && /^\[[^]]+\]: / { next }
+              capture { print }
+            ' CHANGELOG.md)"
+          fi
+          if [ -z "$SECTION" ]; then
+            SECTION="No CHANGELOG.md entry for ${VERSION}. See the repository history for the
+          full list of changes."
+          fi
 
-          Verify the download before installing:
-
-          \`\`\`bash
-          sha256sum -c immich-file-picker-${VERSION}.apk.sha256
-          \`\`\`"
+          {
+            printf 'Publisher: Virtunio Ltd\n'
+            printf 'Package: com.virtunio.immichpicker\n'
+            printf 'Minimum Android: 8.0 (API 26)\n\n'
+            printf '%s\n\n' "$SECTION"
+            printf 'Verify the download before installing:\n\n'
+            printf '```bash\n'
+            printf 'sha256sum -c immich-file-picker-%s.apk.sha256\n' "$VERSION"
+            printf '```\n'
+          } > "$RUNNER_TEMP/notes.md"
 
           # Re-running a release replaces the assets instead of failing on an existing tag.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" --title "Immich File Picker ${VERSION}" --notes "$NOTES"
+            gh release edit "$TAG" --title "Immich File Picker ${VERSION}" --notes-file "$RUNNER_TEMP/notes.md"
           else
             gh release create "$TAG" dist/* \
               --title "Immich File Picker ${VERSION}" \
-              --notes "$NOTES" \
+              --notes-file "$RUNNER_TEMP/notes.md" \
               --verify-tag
           fi

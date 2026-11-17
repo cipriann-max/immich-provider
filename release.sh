@@ -110,7 +110,8 @@ fi
 
 VERSION="$(grep -m1 'versionName' app/build/outputs/apk/release/output-metadata.json \
     | sed 's/.*"versionName": *"\([^"]*\)".*/\1/')"
-[ -n "$VERSION" ] || VERSION="${VERSION_NAME:-1.0.0}"
+# Fallback only; normally output-metadata.json above is authoritative.
+[ -n "$VERSION" ] || VERSION="${VERSION_NAME:-1.1.0}"
 
 # -------------------------------------------------------------------------------- stage
 
