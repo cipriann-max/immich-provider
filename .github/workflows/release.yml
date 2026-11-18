@@ -134,7 +134,7 @@ jobs:
           echo "the values must match, otherwise the secret was mangled on upload."
 
           # Only the leading marker is stable. For PKCS12 the bytes are
-          # 30 82 <length hi> <length lo> — a DER SEQUENCE with a two-byte length —
+          # 30 82 <length hi> <length lo>: a DER SEQUENCE with a two-byte length,
           # so the last two bytes encode the file size and differ for any other
           # keystore. Matching the full four bytes once worked only because the
           # current file happens to be 4418 bytes long (0x1142).

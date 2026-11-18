@@ -12,10 +12,10 @@
 #   ./release.sh 1.2.3 4        # explicit version name and versionCode
 #
 # Signing material is read from, in order:
-#   1. keystore.properties in the project root (gitignored) — normal local use.
+#   1. keystore.properties in the project root (gitignored), for normal local use.
 #   2. RELEASE_KEYSTORE_FILE / RELEASE_KEYSTORE_PASSWORD / RELEASE_KEY_ALIAS /
-#      RELEASE_KEY_PASSWORD environment variables — CI, where the keystore is restored
-#      from a secret.
+#      RELEASE_KEY_PASSWORD environment variables, used by CI where the keystore is
+#      restored from a secret.
 #
 # The key is yours: no project certificate is assumed or required. Set
 # EXPECTED_SIGNER_SUBSTRING to additionally pin the certificate subject when a mismatched

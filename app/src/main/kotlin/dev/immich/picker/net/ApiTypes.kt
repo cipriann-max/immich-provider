@@ -29,7 +29,7 @@ sealed class ApiException(message: String, cause: Throwable? = null) : Exception
      *
      * Deliberately *not* an [Unauthorized]. Conflating the two made an API key that
      * was missing one permission look like an expired session, which cannot be fixed
-     * by signing in again — it needs the key's permissions changed.
+     * by signing in again. It needs the key's permissions changed.
      */
     class Forbidden(val permission: String?) : ApiException(
         permission?.let { "This credential is missing the Immich permission: $it" }

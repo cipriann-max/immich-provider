@@ -17,7 +17,7 @@ package dev.immich.picker.util
  * ```
  *
  * The timeline lives *in* the root rather than in a `timeline` subfolder. That saves a tap
- * for the common case — attaching a recent photo — and keeps the folder list to the one
+ * for the common case of attaching a recent photo, and keeps the folder list to the one
  * thing that genuinely needs navigating. Assets are addressed as `asset:<assetId>`
  * wherever they appear, so a document id is stable regardless of the folder it was
  * reached through.
@@ -81,7 +81,7 @@ object DocumentIds {
      * True when [documentId] lists assets.
      *
      * The root does, because the timeline lives there; so do favourites and any album.
-     * The albums folder does not — it lists folders.
+     * The albums folder does not, because it lists folders.
      */
     fun listsAssets(documentId: String): Boolean =
         isRoot(documentId) || isFavorites(documentId) || isAlbum(documentId)

@@ -66,8 +66,8 @@ import java.io.FileNotFoundException
  *
  * The critical detail is that this provider does **not** push content-change notifications
  * from the listing path. Doing so made DocumentsUI re-query immediately, which appended
- * another chunk, which notified again — the whole library arrived within seconds. Paging
- * now only advances in response to a query, so it tracks what the user actually asked for.
+ * another chunk, which notified again, and the whole library arrived within seconds. Paging
+ * now only advances in response to a query, so it tracks what the user asked for.
  *
  * ## Read-only by construction
  *
@@ -138,7 +138,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
      * a dead end. The root is always listed, its summary says when a sign-in is needed, and
      * the settings flag adds DocumentsUI's "settings" affordance, which routes
      * [DocumentsContract.ACTION_DOCUMENT_ROOT_SETTINGS] to the provider's declared
-     * `android:settingsActivity` — this app's settings screen.
+     * `android:settingsActivity`, which is this app's settings screen.
      */
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val cursor = MatrixCursor(projection ?: DEFAULT_ROOT_PROJECTION)
@@ -472,7 +472,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             // Permission problem, not an expired session: the UI must not be told to
             // sign in again, because doing so would change nothing.
             Log.w(TAG, "openDocument: permission denied", e)
-            throw FileNotFoundException("${e.message} — check the API key's permissions")
+            throw FileNotFoundException("${e.message}. Check the API key's permissions")
         } catch (e: ApiException.Cancelled) {
             throw OperationCanceledException()
         } catch (e: CancellationException) {
@@ -562,7 +562,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
          * [MIN_FETCH_INTERVAL_MS] has passed since the last chunk landed.
          *
          * The interval exists because DocumentsUI issues several overlapping
-         * `queryChildDocuments` calls for a single screen — one per projection it needs —
+         * `queryChildDocuments` calls for a single screen, one per projection it needs,
          * so "advance one chunk per query" advanced seven chunks per render, delivering
          * hundreds of rows before the first screen was drawn. Keeping the window short is
          * what lets the separate, later query caused by scrolling still advance the pager.
@@ -772,7 +772,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             )
         } catch (e: ApiException.Forbidden) {
             Log.w(TAG, "listing: permission denied", e)
-            pager.fail("${e.message} — check the API key's permissions.")
+            pager.fail("${e.message}. Check the API key's permissions.")
         } catch (e: Exception) {
             Log.w(TAG, "listing failed", e)
             pager.fail("Could not load photos from Immich: ${e.message}")
@@ -1011,15 +1011,15 @@ class ImmichDocumentsProvider : DocumentsProvider() {
     /**
      * Tells DocumentsUI that this provider's roots and folder list changed.
      *
-     * Called on credential changes only — never from the listing path, because that would
+     * Called on credential changes only, never from the listing path, because that would
      * make DocumentsUI re-query and page the whole library without user action.
      */
     /**
      * Announces that another page of assets is available for a folder.
      *
-     * DocumentsUI does not re-query a folder just because the user scrolled to the bottom —
-     * three swipe gestures produced zero extra queries on-device. It re-queries only when
-     * the provider says the content changed, so this is what actually drives paging.
+     * DocumentsUI does not re-query a folder just because the user scrolled to the bottom.
+     * Three swipe gestures produced zero extra queries on-device. It re-queries only when
+     * the provider says the content changed, so this is what drives paging.
      */
     private fun notifyChildrenChanged() {
         val ctx = context ?: return
@@ -1115,7 +1115,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
          * Spelling out the bit is what the constant compiles to anyway; referencing the
          * hidden symbol would fail the build. It makes DocumentsUI show a settings
          * affordance that routes ACTION_DOCUMENT_ROOT_SETTINGS to the provider's declared
-         * `android:settingsActivity` — this app's settings screen.
+         * `android:settingsActivity`, which is this app's settings screen.
          */
         const val FLAG_HAS_SETTINGS_COMPAT = 1 shl 17
 
@@ -1175,7 +1175,7 @@ class OperationCanceledException : java.util.concurrent.CancellationException("C
  * Writes a directory row by column name.
  *
  * Projections are chosen by the caller, so rows must be built from `columnNames` rather
- * than from a fixed column order — DocumentsUI asks for its own set and a positional
+ * than from a fixed column order. DocumentsUI asks for its own set, and a positional
  * writer would silently mislabel or crash on it.
  */
 private fun writeDirectoryRow(

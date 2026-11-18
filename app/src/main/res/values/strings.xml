@@ -2,14 +2,14 @@
 <resources>
     <string name="app_name">Immich File Picker</string>
     <string name="provider_root_title">Immich</string>
-    <string name="provider_root_summary_signed_out">Signed out — open Immich File Picker to sign in</string>
+    <string name="provider_root_summary_signed_out">Signed out. Open Immich File Picker to sign in</string>
     <!--
         Shown instead of the plain sign-out summary when the server rejected the stored
         credential. This root summary, plus the EXTRA_ERROR text inside a folder, is the
         app's entire failure surface: no notifications exist, so a failure has to be
         legible where the user is already looking.
     -->
-    <string name="provider_root_summary_session_expired">Session expired — open Immich File Picker to sign in again</string>
+    <string name="provider_root_summary_session_expired">Session expired. Open Immich File Picker to sign in again</string>
     <string name="provider_albums_title">Albums</string>
     <string name="provider_albums_summary">Your Immich albums</string>
     <string name="provider_favorites_title">Favorites</string>

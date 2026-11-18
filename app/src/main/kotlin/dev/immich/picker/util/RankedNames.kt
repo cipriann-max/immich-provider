@@ -18,8 +18,8 @@ package dev.immich.picker.util
  * ## Scope: display only
  *
  * This is applied **only** by `queryChildDocuments`, which is what fills the grid. The
- * name returned for a single document — the one a receiving app reads when it opens a
- * picked file — is left untouched, so the attached file keeps its real name. The bytes
+ * name returned for a single document, which is what a receiving app reads when it opens a
+ * picked file, is left untouched, so the attached file keeps its real name. The bytes
  * were never affected either way.
  */
 object RankedNames {

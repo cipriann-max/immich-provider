@@ -19,14 +19,14 @@ import dev.immich.picker.data.ImmichService
  *    `ACTION_OPEN_DOCUMENT` and `ACTION_GET_CONTENT`, with no activity needed.
  *  - **The system photo picker** (`com.google.android.photopicker`) lists **apps** that
  *    answer the intent. It shows no SAF roots at all, so a provider-only app is invisible
- *    in it — which is exactly what happened when the old in-app picker was deleted: upload
+ *    in it. That is what happened when the old in-app picker was deleted: upload
  *    flows that route `image/*` to the photo picker (Firefox among them) stopped offering
  *    Immich, while `*/*` flows still worked.
  *
  * This activity is therefore a **bridge**, not a UI. It declares the universal MIME wildcard
  * so every chooser lists the app, and immediately hands off to DocumentsUI opened at the
  * Immich root. The user sees
- * one interface — the same one every other path shows — and the result is forwarded unchanged
+ * one interface, the same one every other path shows, and the result is forwarded unchanged
  * to whoever started this activity.
  *
  * ## Why not show a grid here
@@ -54,7 +54,7 @@ class SafPickerBridgeActivity : ComponentActivity() {
         // No component is named: naming one would bypass the user's picker on devices that
         // substitute their own implementation.
         //
-        // The incoming intent is untrusted — this activity is exported, so any app can send
+        // The incoming intent is untrusted: this activity is exported, so any app can send
         // it one. Only the three extras needed to preserve the caller's request are copied,
         // and each is re-validated rather than passed through: nothing else from the source
         // intent reaches the outgoing one.

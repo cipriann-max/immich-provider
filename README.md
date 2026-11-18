@@ -6,22 +6,22 @@
 > depends on it.
 
 An Android app that lets you pick photos and videos from your own [Immich](https://immich.app)
-server in any app's file picker — Chrome upload forms, email attachments, chat apps, anything
+server in any app's file picker: Chrome upload forms, email attachments, chat apps, anything
 that opens a file chooser.
 
 It is a **standalone, read-only** client. It does not touch the official Immich app, does not
 upload, delete or edit anything, and needs no root, no ADB and no allowlist overrides.
 
 - **Package:** `com.virtunio.immichpicker`
-- **Version:** `1.2.0` — see [CHANGELOG.md](CHANGELOG.md)
+- **Version:** `1.2.0`, see [CHANGELOG.md](CHANGELOG.md)
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
 
-The `applicationId` deliberately avoids `dev.immich.*`, because this app is not part of the
-Immich project. The Kotlin package stays `dev.immich.picker` internally — a source-code
-detail with no user-visible effect. The public `applicationId` is what Android, the launcher
-and the document provider authority use, and it is part of the app's identity: changing it
-would make updates install as a separate app.
+The `applicationId` avoids `dev.immich.*`, because this app is not part of the Immich project.
+The Kotlin package stays `dev.immich.picker` internally. That is a source-code detail with no
+user-visible effect. The public `applicationId` is what Android, the launcher and the document
+provider authority use, and it is part of the app's identity: changing it would make updates
+install as a separate app.
 
 ---
 
@@ -41,13 +41,13 @@ Immich              the newest photos and videos, newest first
 
 Opening the root shows the 50 most recent files; further pages load in the background as
 DocumentsUI re-queries, up to **400 assets per folder**. Files are numbered from `0001` in
-view order so the list is chronological by default — see
+view order so the list is chronological by default. See
 [Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix). Assets in the
 trash are excluded.
 
 A small bridge activity also makes the app visible to choosers that list *apps* rather than
-SAF roots — the system photo picker some browsers use for media uploads. It has no UI of its
-own: it opens the same root and forwards the result unchanged.
+SAF roots, such as the system photo picker some browsers use for media uploads. It has no UI
+of its own: it opens the same root and forwards the result unchanged.
 
 ### Screens
 
@@ -103,7 +103,7 @@ release install.
 ### Building a release APK
 
 Use [`release.sh`](release.sh). It builds, signs, verifies the signature and stages the
-APK with a checksum — no GitHub and no CI required:
+APK with a checksum. No GitHub and no CI required:
 
 ```bash
 ./release.sh            # version from app/build.gradle.kts (currently 1.2.0)
@@ -120,7 +120,7 @@ dist/immich-file-picker-1.2.0.apk.sha256
 
 The script refuses to finish unless the APK is signed, because an unsigned release cannot be
 installed and a signing misconfiguration should fail the build rather than leave you with a
-file nobody can use. It does not care *which* key signed it — that is your certificate, not
+file nobody can use. It does not care *which* key signed it. That is your certificate, not
 the project's.
 
 ### Signing a release yourself
@@ -140,7 +140,7 @@ keytool -genkeypair -v \
 The alias and the certificate subject are yours to choose. What matters is that Android
 treats the signing certificate as the app's identity: an APK signed with a different key than
 the installed one is refused, so only the same signer can update an existing install. A build
-signed with your own key is therefore a **different install** from a released APK — uninstall
+signed with your own key is therefore a **different install** from a released APK. Uninstall
 the released one first, or use the `.debug` variant, which has its own application id and
 installs alongside.
 
@@ -152,7 +152,7 @@ update installs made with it; there is no recovery path, since no app store is i
 [`release.sh`](release.sh) and Gradle read signing material from either of two places, so
 the same build works on a laptop and in CI:
 
-1. **`keystore.properties`** in the project root (gitignored) — normal local use:
+1. **`keystore.properties`** in the project root (gitignored), for normal local use:
 
    ```properties
    storeFile=/home/you/keystores/immich-picker.jks
@@ -161,7 +161,7 @@ the same build works on a laptop and in CI:
    keyPassword=…
    ```
 
-2. **Environment variables** — used by CI, and by anyone who prefers not to write a file:
+2. **Environment variables**, used by CI and by anyone who prefers not to write a file:
 
    | Variable | Meaning |
    |---|---|
@@ -185,7 +185,7 @@ Verify any APK's signer yourself, for a release you downloaded or one you built:
 ```
 
 A downloaded release and a locally signed build will print **different** certificate
-digests, and that is expected — the digest shown is the identity of the key that signed that
+digests, and that is expected. The digest shown is the identity of the key that signed that
 particular file.
 
 ### Publishing with GitHub Actions
@@ -221,14 +221,14 @@ those minimums.
 | Action | Pinned | Why it cannot go lower |
 |---|---|---|
 | `actions/checkout` | `v7` | `v5`+ is the Node 24 runtime; older majors are force-migrated |
-| `actions/setup-java` | `v6` | `v5`+ is Node 24. `v6` also renames the `jdkFile` input to `jdk-file`, keeping the old spelling as an alias — this project sets neither |
+| `actions/setup-java` | `v6` | `v5`+ is Node 24. `v6` also renames the `jdkFile` input to `jdk-file`, keeping the old spelling as an alias. This project sets neither |
 | `actions/cache` | `v6` | `v5`+ is Node 24; `v6` additionally moves the bundle to ESM |
 | `actions/upload-artifact` | `v7` | `v6` is the first major whose default runtime is Node 24; `v7` adds single-file uploads. Do **not** use `v3`, which is Node 20 and targets the retired v1 artifact backend |
 | `android-actions/setup-android` | `v4` | No `v5` exists yet, and `v4` already declares `node24`. `v3` is not an option: it runs `sdkmanager tools`, but Google no longer serves the `tools` package, so the job dies with `Failed to find package 'tools'` before Gradle runs |
 
 These majors require Actions Runner `2.327.1` or later on self-hosted runners;
 `ubuntu-latest` is well past that. Only `ubuntu-latest` is used here, and the keys this
-project relies on — `uses`, `with`, `if`, `env` — behave identically across them.
+project relies on (`uses`, `with`, `if`, `env`) behave identically across them.
 
 The `Install required SDK platforms` step still calls `sdkmanager`, so the log contains
 `WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android CLI instead.`
@@ -237,7 +237,7 @@ That is expected and harmless. The stated replacement is the `android` binary's
 missing from several `cmdline-tools` releases (including the 10.0 on the author's machine)
 and `setup-android` itself still invokes `sdkmanager` internally, so the warning cannot be
 removed without adding a dependency on a binary that may not exist on the runner. Note the
-package-path syntax differs — `sdkmanager` takes `platforms;android-36`, whereas
+package-path syntax differs: `sdkmanager` takes `platforms;android-36`, whereas
 `android sdk install` takes `platforms/android-36`.
 
 The release workflow signs with **whatever key you supply**, so a fork that publishes its own
@@ -256,7 +256,7 @@ publishing an unsigned APK. Nothing in the workflow assumes a particular certifi
 checks that the APK is signed, not who signed it.
 
 GitHub secrets are write-only: once uploaded, a value cannot be read back. That is why the
-keystore must also exist locally — the Actions secret is a copy, not the backup.
+keystore must also exist locally. The Actions secret is a copy, not the backup.
 
 The `Validate keystore` step exists because a mangled secret surfaces as
 `DerInputStream.getLength(): lengthTag=N, too big` from deep inside
@@ -297,8 +297,8 @@ Two options. Both end up as a single encrypted `secret`, but they are not the sa
 value, which matters for how long sign-in lasts.
 
 **Email and password** calls `POST /api/auth/login` once and stores the **access token the
-server returns**. Your password is used for that call and then discarded — it is never
-written to disk. The stored token is the session itself, not a renewable JWT.
+server returns**. Your password is used for that call and then discarded. It is never written
+to disk. The stored token is the session itself, not a renewable JWT.
 
 **API key** has nothing to exchange: the key *is* the credential. It is stored as `secret`
 and sent on every request as the `x-api-key` header. Create one in Immich under
@@ -314,8 +314,8 @@ and sent on every request as the `x-api-key` header. Create one in Immich under
 
 `user.read` is **not optional**. Validation reads your profile through
 `GET /api/users/me`, which Immich guards with that permission. A key without it is refused
-at sign-in with a `403` naming the missing permission. All three paths — sign-in, "Test
-connection" and app start — use the same call, so they agree on what is required.
+at sign-in with a `403` naming the missing permission. All three paths (sign-in, "Test
+connection" and app start) use the same call, so they agree on what is required.
 
 Nothing else is required. In particular the app never requests upload, delete or edit
 permissions, and the Immich server would reject those calls anyway if it tried.
@@ -358,9 +358,9 @@ reports rather than claiming the session expired.
 
 If your server uses a self-signed certificate, open **Certificate options** in Settings:
 
-- **Allow untrusted certificates** — accepts any certificate. Convenient, and no worse than
-  the plain-HTTP default for a home server, but it does not protect against interception.
-- **Custom CA (PEM)** — paste your CA certificate. This validates properly and is the better
+- **Allow untrusted certificates** accepts any certificate. Convenient, and no worse than the
+  plain-HTTP default for a home server, but it does not protect against interception.
+- **Custom CA (PEM)** takes your CA certificate. This validates properly and is the better
   option if you have one.
 
 ---
@@ -384,11 +384,11 @@ exactly one Immich layout.
 ### Why there is no custom picker any more
 
 Earlier versions shipped their own `GET_CONTENT` activity, which had two problems. It could not
-be reached from `OPEN_DOCUMENT` at all — that action is reserved for the system
-`DocumentsUI`, and even `android:priority="1000"` does not change the resolution (verified
-on-device). Worse, it meant the same library rendered differently depending on which action the
-caller used, and the two could never agree on ordering because DocumentsUI owns the sort of any
-root it displays. Deleting it left one surface to maintain and one behaviour to explain.
+be reached from `OPEN_DOCUMENT` at all. That action is reserved for the system `DocumentsUI`,
+and even `android:priority="1000"` does not change the resolution (verified on-device). Worse,
+it meant the same library rendered differently depending on which action the caller used, and
+the two could never agree on ordering because DocumentsUI owns the sort of any root it
+displays. Deleting it left one surface to maintain and one behaviour to explain.
 
 What replaced it is a root for the roots-based chooser, plus a **UI-less bridge activity** for
 the app-list-based one. The bridge renders nothing, opens DocumentsUI at the Immich root and
@@ -396,9 +396,10 @@ forwards the result untouched, so it adds reach without adding a second interfac
 
 ### Types
 
-The root is registered for **every** MIME type, not just `image/*` and `video/*`, so it appears
-in generic "attach a file" sheets — chat apps, e-mail clients, browser upload forms that accept
-documents. Because an Immich library only contains photos and videos, the type is filtered
+The root is registered for **every** MIME type, not only `image/*` and `video/*`, so it
+appears in generic "attach a file" sheets: chat apps, e-mail clients, browser upload forms
+that accept documents. Because an Immich library only contains photos and videos, the type is
+filtered
 against exactly what the caller asked for (`image/*`, a concrete type, or the
 `EXTRA_MIME_TYPES` list). If the caller only accepts a type Immich cannot supply, such as
 `application/pdf`, the root says so instead of showing a list where nothing is selectable.
@@ -416,7 +417,7 @@ needs no special privileges and works everywhere.
 ### Sorting
 
 The list reads newest-first by default. Assets are requested from Immich newest-first, sorted
-again locally, and numbered so that DocumentsUI's name sort agrees with that order — see
+again locally, and numbered so that DocumentsUI's name sort agrees with that order. See
 [Why file names get a numeric prefix](#why-file-names-get-a-numeric-prefix).
 
 DocumentsUI's own sort menu still works and can reorder the list; choosing anything other than
@@ -443,8 +444,8 @@ receiving app sees the real name and extension; files with no original name get
 ### Errors are never silent
 
 There are no notifications and no background reporting. Every failure is shown where the
-user is already looking — the root's summary line, the folder's `EXTRA_ERROR` text, or the
-Settings screen — which is why the app requests no permission beyond `INTERNET`.
+user is already looking: the root's summary line, the folder's `EXTRA_ERROR` text, or the
+Settings screen. That is why the app requests no permission beyond `INTERNET`.
 
 | Situation | What happens |
 |---|---|
@@ -455,9 +456,9 @@ Settings screen — which is why the app requests no permission beyond `INTERNET
 | Request cancelled | Treated as a no-op, as DocumentsUI expects |
 | Server slow | 45 s network timeout per call; the UI shows a spinner and stays responsive |
 
-The schema-mismatch case deserves a note: it is how the app behaves when your server is a
-**major version newer** than this build. Instead of silently showing an empty grid, it tells
-you which endpoint disagreed and what version answered.
+The schema-mismatch case is how the app behaves when your server is a **major version newer**
+than this build. Instead of showing an empty grid, it names the endpoint that disagreed and
+the version that answered.
 
 ### Server version handling
 
@@ -476,7 +477,7 @@ The version this build was generated from and tested against is compiled into
 
 | Component | What it does |
 |---|---|
-| `ImmichDocumentsProvider` | The SAF root — the picker surface for both `GET_CONTENT` and `OPEN_DOCUMENT` |
+| `ImmichDocumentsProvider` | The SAF root, which is the picker surface for both `GET_CONTENT` and `OPEN_DOCUMENT` |
 | `SafPickerBridgeActivity` | UI-less bridge so app-list pickers show Immich; opens the root and forwards the result |
 | `MainActivity` | Settings, also the target of DocumentsUI's root settings affordance |
 
@@ -497,15 +498,15 @@ Immich              the newest assets, newest first
 The first page is 50 assets. Further pages load in the background and DocumentsUI re-queries
 as each arrives, up to **400 assets per folder**. Trashed assets are excluded everywhere.
 
-400 is a ceiling, not a limit on the library: DocumentsUI has no lazy paging for providers
-(it does not even re-query when you scroll to the bottom — measured: three swipes produced zero
-queries), so growth has to be driven by content-change notifications, and an unbounded version
+400 is a ceiling, not a limit on the library. DocumentsUI has no lazy paging for providers (it
+does not re-query when you scroll to the bottom: three swipes produced zero queries when
+measured), so growth has to be driven by content-change notifications. An unbounded version
 loaded a 60k library within seconds of opening. 400 is deep enough to find a recent file while
 keeping an accidental open cheap. Older items remain reachable through Albums.
 
 The root is always present, even signed out: its summary then says a sign-in is needed, and the
 sign-in screen is one tap away. If the server has rejected the stored credential the summary
-says **"Session expired — open Immich File Picker to sign in again"** instead, so the failure is
+says **"Session expired. Open Immich File Picker to sign in again"** instead, so the failure is
 visible in the picker itself rather than only after opening a folder. Timeline, Albums and
 Favorites open to that message rather than looking broken.
 
@@ -517,8 +518,8 @@ server, and it does not change the file you attach.
 
 The cause is a platform constraint. DocumentsUI applies **its own sort** to whatever a
 `DocumentsProvider` returns, defaulting to **"File name (A to Z)"**, and ignores the order of
-the rows themselves. Since camera filenames start with a date, A–Z is chronological *ascending*
-— a photo library would open at the oldest picture. No provider-side ordering can override
+the rows themselves. Since camera filenames start with a date, A–Z is chronological *ascending*,
+so a photo library would open at the oldest picture. No provider-side ordering can override
 this; it was confirmed on-device by logging the cursor (assets returned newest-first,
 `WA0010 → WA0009 → WA0008`) and watching DocumentsUI render them as Sep 19, Sep 23, Sep 25.
 
@@ -526,7 +527,7 @@ The one lever a provider has is the name, because that is what the sort compares
 rows `0001`, `0002`, … makes A–Z *identical* to newest-first, so the default view is correct
 with no tap and no setting to remember.
 
-The prefix is applied in exactly one place — the folder listing that fills the grid. The name
+The prefix is applied in exactly one place: the folder listing that fills the grid. The name
 returned when a picked file is opened comes from a separate call and is left untouched, so the
 receiving app sees the real filename. The file's bytes are never modified either way.
 
@@ -559,7 +560,7 @@ so the default is wrong again next time.
 ## Immich API endpoints used
 
 Every call below was made against a live **Immich v3.4.1** server while building this, and is
-reached from real user actions — nothing here is speculative.
+reached from real user actions. Nothing here is speculative.
 
 | Method | Path | Called when |
 |---|---|---|
@@ -603,7 +604,7 @@ python3 tools/openapi/generate_models.py \
   --version X.Y.Z
 ```
 
-This rewrites `Models.kt` and `Endpoints.kt`. Do not edit those by hand — the next
+This rewrites `Models.kt` and `Endpoints.kt`. Do not edit those by hand; the next
 regeneration overwrites them.
 
 If Immich adds, removes or renames an endpoint, the generator stops with a message naming
@@ -631,7 +632,7 @@ this README.
 - Every property has a default, so **missing** optional keys parse to a sensible value.
 
 What is *not* resilient is a removed or retyped field. That surfaces as an explicit
-`IncompatibleSchema` error naming the endpoint and server version — never as an empty screen.
+`IncompatibleSchema` error naming the endpoint and server version, never as an empty screen.
 
 ---
 
@@ -644,7 +645,7 @@ CHANGELOG.md                    Release notes, Keep a Changelog format
 .github/workflows/release.yml   Tag-driven signed release with GitHub Release
 
 app/src/main/kotlin/dev/immich/picker/
-├── api/                    Generated from the OpenAPI spec — do not edit
+├── api/                    Generated from the OpenAPI spec, do not edit
 │   ├── Models.kt           39 @Serializable models
 │   ├── Endpoints.kt        8 typed operations
 │   └── ApiJson.kt          Json config (ignoreUnknownKeys, explicitNulls=false)
@@ -706,7 +707,7 @@ library is rendered:
    `content://com.virtunio.immichpicker.documents/document/asset:<id>` and streams the original
    through `openDocument()`, so the receiving app reads bytes over a normal SAF grant. Nothing
    is copied.
-2. **Being selectable.** DocumentsUI lists only provider *roots* for `OPEN_DOCUMENT` — an
+2. **Being selectable.** DocumentsUI lists only provider *roots* for `OPEN_DOCUMENT`. An
    activity cannot be the system picker for that action, and `android:priority` does not help.
    A root is the only way to be offered.
 

@@ -13,13 +13,17 @@ codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for exa
 
 - **Docs no longer describe a specific project signing key.** The README published a
   particular publisher's certificate DN and fingerprint, and `release.sh` hard-failed unless
-  the APK carried it — meaningless for anyone building from source, and an odd thing to bake
-  into a public repository. The script now requires only that the APK *is* signed; pinning a
-  subject is opt-in through `EXPECTED_SIGNER_SUBSTRING`. README explains how to generate your
-  own keystore and why a build signed with your key is a separate install from a released APK.
+  the APK carried it. That is meaningless for anyone building from source, and an odd thing to
+  bake into a public repository. The script now requires only that the APK *is* signed, and
+  pinning a subject is opt-in through `EXPECTED_SIGNER_SUBSTRING`. README explains how to
+  generate your own keystore, and why a build signed with your key is a separate install from a
+  released APK.
 - **Release notes publish the signer digest instead of asserting a publisher.** The workflow
-  records the certificate the APK was actually signed with, so a download can be checked
-  against the keystore you uploaded.
+  records the certificate the APK was signed with, so a download can be checked against the
+  keystore you uploaded.
+- **Prose style.** Em dashes are gone from the README, this changelog, code comments and
+  resource strings. They were used as a general-purpose connector, which is hard to read and
+  reads as machine-written.
 - **CI and release workflows now run on Node.js 24 actions.** `actions/checkout` and
   `actions/cache` moved to `v7`/`v6`, `actions/setup-java` to `v6`, and
   `actions/upload-artifact` to `v7`. The previous `v4` pins were all Node 20, which GitHub
@@ -28,7 +32,7 @@ codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for exa
   major. README documents the minimum major for each and why `upload-artifact` must not go
   back to `v3`.
 
-## [1.2.0] — 2026-11-18
+## [1.2.0] - 2026-11-18
 
 A permissions release. The app now asks for one permission instead of three, and says what
 went wrong where you are already looking instead of in the notification shade.
@@ -44,8 +48,8 @@ went wrong where you are already looking instead of in the notification shade.
 ### Changed
 
 - **The root summary now reports an expired session.** When the server rejects the stored
-  credential, the picker's root row reads "Session expired — open Immich File Picker to sign
-  in again" instead of the generic signed-out hint, so the failure needs no notification to be
+  credential, the picker's root row reads "Session expired. Open Immich File Picker to sign in
+  again" instead of the generic signed-out hint, so the failure needs no notification to be
   noticed. Opening a folder still shows the specific `EXTRA_ERROR` text.
 - **The version warning lives only in Settings.** It used to be duplicated as a notification.
 
@@ -56,11 +60,11 @@ went wrong where you are already looking instead of in the notification shade.
 - The package id, signing key and credential format are unchanged, so this installs over
   1.1.0 as a normal update and keeps your sign-in.
 
-## [1.1.0] — 2026-11-17
+## [1.1.0] - 2026-11-17
 
 The release that makes Immich show up in **any** app's file picker. In 1.0.0 the app could
-only be reached through its own custom picker activity, so `ACTION_OPEN_DOCUMENT` callers —
-and every app that resolves a file chooser to the system DocumentsUI — never offered it at
+only be reached through its own custom picker activity, so `ACTION_OPEN_DOCUMENT` callers,
+and every app that resolves a file chooser to the system DocumentsUI, never offered it at
 all. This version replaces that activity with a real Storage Access Framework root.
 
 ### Added
@@ -74,7 +78,7 @@ all. This version replaces that activity with a real Storage Access Framework ro
 - **Albums with paging.** Each album folder loads its newest assets in 50-item pages, in
   album-last-activity order, instead of a flat list.
 - **SAF picker bridge.** `SafPickerBridgeActivity` is a transparent, UI-less activity that
-  makes the app visible to choosers which list *apps* rather than SAF roots — notably the
+  makes the app visible to choosers which list *apps* rather than SAF roots, notably the
   system photo picker that browsers such as Firefox route media uploads through. It opens
   DocumentsUI at the Immich root and forwards the result unchanged, so it adds
   discoverability without adding a second interface.
@@ -90,7 +94,7 @@ all. This version replaces that activity with a real Storage Access Framework ro
 ### Changed
 
 - **The root is capped at 400 assets per folder.** DocumentsUI has no lazy paging for
-  providers — it does not re-query on scroll — so an unbounded root loaded an entire large
+  providers and does not re-query on scroll, so an unbounded root loaded an entire large
   library within seconds of being opened. 400 is deep enough to find a recent file while
   keeping an accidental open cheap; older items remain reachable through Albums.
 - Trashed assets are excluded from the timeline, albums and favorites alike.

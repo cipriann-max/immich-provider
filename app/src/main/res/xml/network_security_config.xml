@@ -14,7 +14,7 @@
         app's own OkHttp client, but a user-installed CA is also needed for the
         platform trust store path.
 
-    The stronger option — pinning or refusing user CAs in release — would make
+    The stronger option, pinning or refusing user CAs in release, would make
     "Custom CA" unusable. See the Security notes in README.md.
 -->
 <network-security-config xmlns:tools="http://schemas.android.com/tools">

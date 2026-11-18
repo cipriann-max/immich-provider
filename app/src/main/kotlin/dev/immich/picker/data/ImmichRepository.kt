@@ -44,8 +44,8 @@ class ImmichRepository(
      * Returns the signed-in user's display data, and validates the credential.
      *
      * This is the single validation path used by login, "Test connection" and app start.
-     * `GET /users/me` requires `user.read`, so that permission is genuinely required —
-     * not optional. There is deliberately no fallback to a library call: a credential
+     * `GET /users/me` requires `user.read`, so that permission is required and not
+     * optional. There is no fallback to a library call: a credential
      * that cannot read the profile is rejected up front with a clear message, instead of
      * being accepted here and failing later with a confusing error.
      */
@@ -188,8 +188,8 @@ class ImmichRepository(
         val page = assets
         return AssetPage(
             // Trashed assets are dropped here rather than by the server. Immich 3.4.1's
-            // MetadataSearchDto has no `isTrashed` filter — only the deprecated
-            // `trashedAfter`/`trashedBefore` date bounds — so asking for "not trashed" is
+            // MetadataSearchDto has no `isTrashed` filter, only the deprecated
+            // `trashedAfter`/`trashedBefore` date bounds, so asking for "not trashed" is
             // not expressible in a request. Filtering on the response keeps trashed photos
             // out of the picker, which is the behaviour that matters, at the cost of an
             // occasionally short page.

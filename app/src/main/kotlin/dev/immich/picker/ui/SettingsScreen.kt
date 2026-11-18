@@ -49,7 +49,7 @@ import dev.immich.picker.data.VersionSeverity
 
 /**
  * Single-screen Material 3 UI: credentials at the top, live status below, then
- * cache controls and the version warning. Deliberately plain — this app exists to
+ * cache controls and the version warning. Kept plain on purpose: this app exists to
  * make the picker work, not to be a gallery.
  */
 @OptIn(ExperimentalMaterial3Api::class)

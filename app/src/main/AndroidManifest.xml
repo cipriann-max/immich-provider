@@ -2,9 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        INTERNET is the only permission this app asks for. There is deliberately no
+        INTERNET is the only permission this app asks for. There is no
         POST_NOTIFICATIONS: nothing here needs to reach the user while they are not in a
-        picker, and every failure is reported where they are already looking — in the
+        picker, and every failure is reported where they are already looking, in the
         root's summary or in the folder containing the EXTRA_ERROR message.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -47,16 +47,16 @@
             There are two chooser implementations on modern Android. DocumentsUI lists
             provider *roots*, so the root below is enough for both GET_CONTENT and
             OPEN_DOCUMENT. The system photo picker, however, lists *apps that answer the
-            intent* and shows no roots at all — so a provider-only app is invisible in it,
+            intent* and shows no roots at all, so a provider-only app is invisible in it,
             which is where media uploads from browsers such as Firefox land.
 
             This activity has no UI of its own. It exists so those pickers list Immich, and
             it immediately opens DocumentsUI at the Immich root, forwarding the result
             unchanged. One interface, one sort order, on every path.
 
-            Registered for every MIME type, not just media. Narrow filters would make the
-            app invisible to callers that ask for application/* or */* — the original
-            reason Immich never appeared in document uploads. What the library can actually
+            Registered for every MIME type, not only media. Narrow filters would make the
+            app invisible to callers that ask for application/* or */*, which is the
+            original reason Immich never appeared in document uploads. What the library can
             serve is decided per request, inside the picker.
         -->
         <activity
@@ -90,7 +90,7 @@
             1. Resolves the `content://` URIs the picker hands to the receiving app, so the
                original file streams over a normal read grant.
             2. Contributes one root to DocumentsUI, so the app is selectable in
-               ACTION_OPEN_DOCUMENT dialogs — the "attach a file" path where DocumentsUI
+               ACTION_OPEN_DOCUMENT dialogs, the "attach a file" path where DocumentsUI
                lists roots rather than activities and where the app was previously absent.
 
             Contract notes:

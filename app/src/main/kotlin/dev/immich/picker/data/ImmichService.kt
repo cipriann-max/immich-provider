@@ -73,7 +73,7 @@ object ImmichService {
      *
      * This is the whole of the app's failure plumbing. There are no notifications and no
      * background reporting, so failures are reported only where the user is already
-     * looking — the picker root and the folder that failed.
+     * looking: the picker root and the folder that failed.
      */
     fun onAuthFailure() {
         authFailed.set(true)

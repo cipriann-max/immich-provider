@@ -2,9 +2,9 @@
 <!--
     Lint configuration for this module.
 
-    Everything suppressed here is a deliberate product decision, not an oversight — each
-    entry carries the reason. Anything genuinely actionable is fixed in the code instead
-    of being silenced, so a warning that appears in a build log is worth reading.
+    Everything suppressed here is a deliberate product decision, not an oversight, and each
+    entry carries the reason. Anything actionable is fixed in the code instead of being
+    silenced, so a warning that appears in a build log is worth reading.
 -->
 <lint>
 
@@ -15,7 +15,7 @@
 
         The launcher bitmaps are the square Immich flower artwork, generated from
         immich-provider.png. They intentionally fill the canvas and are paired with the
-        adaptive icon in mipmap-anydpi-v26, which supplies the mask on API 26+ — the only
+        adaptive icon in mipmap-anydpi-v26, which supplies the mask on API 26+, the only
         API levels this app runs on. The legacy PNG therefore never renders unmasked in
         practice, so padding it would only shrink the artwork where it *is* used.
     -->
@@ -90,8 +90,8 @@
         about.
 
         The forwarded intent is not the caller's. It is built from scratch with
-        ACTION_OPEN_DOCUMENT, and only three values are carried over — the MIME type, the
-        MIME type list and EXTRA_ALLOW_MULTIPLE — each re-validated against an allowlist in
+        ACTION_OPEN_DOCUMENT, and only three values are carried over (the MIME type, the
+        MIME type list and EXTRA_ALLOW_MULTIPLE), each re-validated against an allowlist in
         sanitizeType/sanitizeTypes. No component, data URI, action, flag or other extra is
         reused, so there is no confused-deputy path to sanitise.
 
