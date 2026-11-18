@@ -399,8 +399,7 @@ forwards the result untouched, so it adds reach without adding a second interfac
 The root is registered for **every** MIME type, not only `image/*` and `video/*`, so it
 appears in generic "attach a file" sheets: chat apps, e-mail clients, browser upload forms
 that accept documents. Because an Immich library only contains photos and videos, the type is
-filtered
-against exactly what the caller asked for (`image/*`, a concrete type, or the
+filtered against exactly what the caller asked for (`image/*`, a concrete type, or the
 `EXTRA_MIME_TYPES` list). If the caller only accepts a type Immich cannot supply, such as
 `application/pdf`, the root says so instead of showing a list where nothing is selectable.
 
