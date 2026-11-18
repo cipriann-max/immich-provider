@@ -34,8 +34,11 @@ jobs:
     name: Build signed release
     runs-on: ubuntu-latest
     steps:
+      # These action majors are the ones that run on Node.js 24, which is what
+      # `ubuntu-latest` expects; older pins are force-migrated and log a deprecation
+      # warning on every job. Keep them in step with ci.yml.
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Derive version from tag
         id: version
@@ -61,7 +64,7 @@ jobs:
           echo "Version $RAW (code $CODE)"
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -84,7 +87,7 @@ jobs:
           sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -184,7 +187,7 @@ jobs:
             || { echo "::error::APK is not signed by Virtunio Ltd"; exit 1; }
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-apk
           path: dist/*

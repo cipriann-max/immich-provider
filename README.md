@@ -211,11 +211,25 @@ unit tests, builds via [`release.sh`](release.sh), verifies the `Virtunio Ltd` s
 and creates the Release with the APK and checksum attached. Re-running a tag replaces the
 assets rather than failing.
 
-Both workflows set up the SDK with `android-actions/setup-android@v4`, and that floor
-matters: `v3` runs `sdkmanager tools` during setup, but Google no longer serves the `tools`
-package, so a `v3` pin fails the job with `Failed to find package 'tools'` before Gradle
-runs. Everything `tools` used to provide now ships in the command line tools that `v4`
-installs.
+### Action versions
+
+Pin every action to a major that runs on **Node.js 24**. GitHub forces Node 20 actions onto
+Node 24 on hosted runners and logs a deprecation warning for each one, so an old pin makes
+every job noisy and sits on a removal path. The floors are `checkout` 5, `cache` 5,
+`setup-java` 5 and `upload-artifact` 6; the workflows pin the current majors rather than
+those minimums.
+
+| Action | Pinned | Why it cannot go lower |
+|---|---|---|
+| `actions/checkout` | `v7` | `v5`+ is the Node 24 runtime; older majors are force-migrated |
+| `actions/setup-java` | `v6` | `v5`+ is Node 24. `v6` also renames the `jdkFile` input to `jdk-file`, keeping the old spelling as an alias — this project sets neither |
+| `actions/cache` | `v6` | `v5`+ is Node 24; `v6` additionally moves the bundle to ESM |
+| `actions/upload-artifact` | `v7` | `v6` is the first major whose default runtime is Node 24; `v7` adds single-file uploads. Do **not** use `v3`, which is Node 20 and targets the retired v1 artifact backend |
+| `android-actions/setup-android` | `v4` | No `v5` exists yet, and `v4` already declares `node24`. `v3` is not an option: it runs `sdkmanager tools`, but Google no longer serves the `tools` package, so the job dies with `Failed to find package 'tools'` before Gradle runs |
+
+These majors require Actions Runner `2.327.1` or later on self-hosted runners;
+`ubuntu-latest` is well past that. Only `ubuntu-latest` is used here, and the keys this
+project relies on — `uses`, `with`, `if`, `env` — behave identically across them.
 
 The `Install required SDK platforms` step still calls `sdkmanager`, so the log contains
 `WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Use Android CLI instead.`

@@ -9,7 +9,15 @@ codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for exa
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **CI and release workflows now run on Node.js 24 actions.** `actions/checkout` and
+  `actions/cache` moved to `v7`/`v6`, `actions/setup-java` to `v6`, and
+  `actions/upload-artifact` to `v7`. The previous `v4` pins were all Node 20, which GitHub
+  force-migrates on hosted runners and reports as a deprecation warning on every job.
+  `android-actions/setup-android` stays on `v4`: it is already on Node 24 and has no newer
+  major. README documents the minimum major for each and why `upload-artifact` must not go
+  back to `v3`.
 
 ## [1.2.0] — 2026-11-18
 
