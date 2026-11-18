@@ -14,14 +14,14 @@ upload, delete or edit anything, and needs no root, no ADB and no allowlist over
 
 - **Package:** `com.virtunio.immichpicker`
 - **Version:** `1.2.0` — see [CHANGELOG.md](CHANGELOG.md)
-- **Publisher:** Virtunio Ltd
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
 
-The package id is reverse-DNS of a domain Virtunio Ltd controls, not `dev.immich.*`, because
-this app is not part of the Immich project. The Kotlin package stays `dev.immich.picker`
-internally — that is a source-code detail with no user-visible effect. The public
-`applicationId` is what Android, the launcher and the document provider authority use.
+The `applicationId` deliberately avoids `dev.immich.*`, because this app is not part of the
+Immich project. The Kotlin package stays `dev.immich.picker` internally — a source-code
+detail with no user-visible effect. The public `applicationId` is what Android, the launcher
+and the document provider authority use, and it is part of the app's identity: changing it
+would make updates install as a separate app.
 
 ---
 
@@ -118,39 +118,34 @@ dist/immich-file-picker-1.2.0.apk
 dist/immich-file-picker-1.2.0.apk.sha256
 ```
 
-The script refuses to finish if the APK is unsigned, or if it is signed by a certificate
-that does not carry `O=Virtunio Ltd`. That guard exists because a release signed with the
-wrong key cannot be installed over an existing one — better to fail at build time.
+The script refuses to finish unless the APK is signed, because an unsigned release cannot be
+installed and a signing misconfiguration should fail the build rather than leave you with a
+file nobody can use. It does not care *which* key signed it — that is your certificate, not
+the project's.
 
-### Signing keys
+### Signing a release yourself
 
-| Property | Value |
-|---|---|
-| Publisher | **Virtunio Ltd** |
-| Certificate DN | `CN=Immich File Picker, O=Virtunio Ltd, OU=Applications, L=Nicosia, C=CY` |
-| Alias | `immich-picker` |
-| Algorithm | RSA 4096, self-signed, SHA384withRSA, 10000 days |
-| Certificate SHA-256 | `4eb44b6de93977f9f0890ecbff3b045730879e669d64f2e5cd5223a5cf7ae931` |
-
-The keystore lives **outside the repository**, in `$HOME/keystores/immich-picker-release.jks`,
-so it cannot be committed by accident even if `.gitignore` changes. The password is in
-`$HOME/keystores/immich-picker-release.password` (mode 600).
-
-**Back this file up somewhere durable.** If it is lost, no future release can update an
-existing install; every user would have to uninstall first. There is no recovery path —
-Google Play is not involved, so no key-escrow service exists for it.
-
-To create a replacement keystore (only if you are starting over, since existing installs
-cannot be updated with a new key):
+There is **no project signing key**: releases published here are signed with a key that is
+not in this repository, and builds you produce are yours to sign. Generate one keystore and
+keep it outside version control:
 
 ```bash
 keytool -genkeypair -v \
-  -keystore ~/keystores/immich-picker-release.jks \
+  -keystore ~/keystores/immich-picker.jks \
   -alias immich-picker \
   -keyalg RSA -keysize 4096 -validity 10000 \
-  -storetype PKCS12 \
-  -dname "CN=Immich File Picker, O=Virtunio Ltd, OU=Applications, L=Nicosia, C=CY"
+  -storetype PKCS12
 ```
+
+The alias and the certificate subject are yours to choose. What matters is that Android
+treats the signing certificate as the app's identity: an APK signed with a different key than
+the installed one is refused, so only the same signer can update an existing install. A build
+signed with your own key is therefore a **different install** from a released APK — uninstall
+the released one first, or use the `.debug` variant, which has its own application id and
+installs alongside.
+
+Keep the keystore and its passwords out of the repository. If you lose the key you cannot
+update installs made with it; there is no recovery path, since no app store is involved.
 
 ### Local signing configuration
 
@@ -160,7 +155,7 @@ the same build works on a laptop and in CI:
 1. **`keystore.properties`** in the project root (gitignored) — normal local use:
 
    ```properties
-   storeFile=/home/you/keystores/immich-picker-release.jks
+   storeFile=/home/you/keystores/immich-picker.jks
    storePassword=…
    keyAlias=immich-picker
    keyPassword=…
@@ -182,12 +177,16 @@ If neither is configured, `./gradlew :app:assembleRelease` still compiles but yi
 **unsigned** APK, which Android will refuse to install. That is intentional: a contributor
 without signing material can still build and run tests.
 
-Verify any APK's publisher yourself:
+Verify any APK's signer yourself, for a release you downloaded or one you built:
 
 ```bash
 "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs \
   dist/immich-file-picker-1.2.0.apk
 ```
+
+A downloaded release and a locally signed build will print **different** certificate
+digests, and that is expected — the digest shown is the identity of the key that signed that
+particular file.
 
 ### Publishing with GitHub Actions
 
@@ -207,9 +206,9 @@ git push origin v1.2.0
 
 The tag is the single source of truth: `release.yml` strips the leading `v`, sets
 `versionName` from it, derives `versionCode` as `major*10000 + minor*100 + patch`, runs the
-unit tests, builds via [`release.sh`](release.sh), verifies the `Virtunio Ltd` signature,
-and creates the Release with the APK and checksum attached. Re-running a tag replaces the
-assets rather than failing.
+unit tests, builds via [`release.sh`](release.sh), verifies that the APK is signed, and
+creates the Release with the APK and checksum attached. Re-running a tag replaces the assets
+rather than failing.
 
 ### Action versions
 
@@ -241,20 +240,23 @@ removed without adding a dependency on a binary that may not exist on the runner
 package-path syntax differs — `sdkmanager` takes `platforms;android-36`, whereas
 `android sdk install` takes `platforms/android-36`.
 
-Add these four repository secrets (Settings → Secrets and variables → Actions):
+The release workflow signs with **whatever key you supply**, so a fork that publishes its own
+releases needs its own keystore, uploaded as four repository secrets (Settings → Secrets and
+variables → Actions):
 
 | Secret | How to produce it |
 |---|---|
-| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 ~/keystores/immich-picker-release.jks` |
+| `RELEASE_KEYSTORE_BASE64` | `base64 -w0 ~/keystores/immich-picker.jks` |
 | `RELEASE_KEYSTORE_PASSWORD` | same password as `storePassword` |
-| `RELEASE_KEY_ALIAS` | `immich-picker` |
+| `RELEASE_KEY_ALIAS` | the alias you chose when generating the key |
 | `RELEASE_KEY_PASSWORD` | same password as `keyPassword` |
 
 If `RELEASE_KEYSTORE_BASE64` is missing the release job fails on purpose rather than
-publishing an unsigned APK.
+publishing an unsigned APK. Nothing in the workflow assumes a particular certificate: it
+checks that the APK is signed, not who signed it.
 
-Note that GitHub secrets are write-only: once uploaded, the value cannot be read back. That
-is why the keystore must also exist locally — the Actions secret is a copy, not the backup.
+GitHub secrets are write-only: once uploaded, a value cannot be read back. That is why the
+keystore must also exist locally — the Actions secret is a copy, not the backup.
 
 The `Validate keystore` step exists because a mangled secret surfaces as
 `DerInputStream.getLength(): lengthTag=N, too big` from deep inside
@@ -266,12 +268,12 @@ cannot open it with the supplied password and alias.
 To confirm an upload is correct, compare fingerprints:
 
 ```bash
-sha256sum ~/keystores/immich-picker-release.jks     # local
+sha256sum ~/keystores/immich-picker.jks     # local
 # compare with "Keystore sha256" printed by the Validate keystore step
 ```
 
-Common causes of the mismatch are a newline or a `wc -c` line captured into the secret, a
-line-wrapped file copied by hand, or base64 decoded before upload as well as after.
+Common causes of a mismatch are a trailing newline or a `wc -c` line captured into the secret,
+a line-wrapped file copied by hand, or base64 decoded before upload as well as after.
 
 ---
 

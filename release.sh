@@ -17,6 +17,10 @@
 #      RELEASE_KEY_PASSWORD environment variables — CI, where the keystore is restored
 #      from a secret.
 #
+# The key is yours: no project certificate is assumed or required. Set
+# EXPECTED_SIGNER_SUBSTRING to additionally pin the certificate subject when a mismatched
+# key would be harmful (CI publishing updates to existing installs).
+#
 # Output: dist/immich-file-picker-<version>.apk plus a SHA-256 checksum. dist/ is
 # gitignored, so an APK is published by attaching it to a GitHub Release, never by
 # committing it.
@@ -99,19 +103,20 @@ fi
 DN="$(grep -m1 'certificate DN' /tmp/immich-signature.txt | sed 's/.*certificate DN: //')"
 DIGEST="$(grep -m1 'SHA-256 digest' /tmp/immich-signature.txt | sed 's/.*SHA-256 digest: //')"
 
-# The publisher identity is a release invariant, so fail loudly if it ever changes —
-# that would mean the wrong keystore was used and updates would be rejected on devices.
-EXPECTED_ORG="O=Virtunio Ltd"
-if [[ "$DN" != *"$EXPECTED_ORG"* ]]; then
+# Optional identity check. Any certificate is accepted by default, because the key belongs
+# to whoever is building. Set EXPECTED_SIGNER_SUBSTRING to enforce an invariant, for example
+# in CI where an unexpected keystore would produce installs that cannot be updated:
+#   EXPECTED_SIGNER_SUBSTRING="O=Example Ltd" ./release.sh
+if [ -n "${EXPECTED_SIGNER_SUBSTRING:-}" ] && [[ "$DN" != *"$EXPECTED_SIGNER_SUBSTRING"* ]]; then
     echo "error: unexpected signer identity: $DN" >&2
-    echo "       Expected a certificate containing '$EXPECTED_ORG'." >&2
+    echo "       Expected a certificate containing '$EXPECTED_SIGNER_SUBSTRING'." >&2
     exit 1
 fi
 
 VERSION="$(grep -m1 'versionName' app/build/outputs/apk/release/output-metadata.json \
     | sed 's/.*"versionName": *"\([^"]*\)".*/\1/')"
 # Fallback only; normally output-metadata.json above is authoritative.
-[ -n "$VERSION" ] || VERSION="${VERSION_NAME:-1.1.0}"
+[ -n "$VERSION" ] || VERSION="${VERSION_NAME:-1.0.0}"
 
 # -------------------------------------------------------------------------------- stage
 

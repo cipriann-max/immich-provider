@@ -104,12 +104,12 @@ android {
 
     defaultConfig {
         /**
-         * The app's public identity. Reverse-DNS of a domain Virtunio Ltd controls, so the
-         * id does not imply affiliation with the Immich project (`immich.dev` belongs to
-         * them, and this app is an independent third-party client).
+         * The app's public identity. Chosen so the id does not imply affiliation with the
+         * Immich project (`immich.dev` belongs to them, and this app is an independent
+         * third-party client).
          *
-         * Changing this again would make the app a *different* install: no upgrade path,
-         * and stored credentials and caches would not carry over.
+         * Changing this would make the app a *different* install: no upgrade path, and
+         * stored credentials and caches would not carry over.
          */
         applicationId = "com.virtunio.immichpicker"
         minSdk = 26

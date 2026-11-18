@@ -11,6 +11,15 @@ codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for exa
 
 ### Changed
 
+- **Docs no longer describe a specific project signing key.** The README published a
+  particular publisher's certificate DN and fingerprint, and `release.sh` hard-failed unless
+  the APK carried it — meaningless for anyone building from source, and an odd thing to bake
+  into a public repository. The script now requires only that the APK *is* signed; pinning a
+  subject is opt-in through `EXPECTED_SIGNER_SUBSTRING`. README explains how to generate your
+  own keystore and why a build signed with your key is a separate install from a released APK.
+- **Release notes publish the signer digest instead of asserting a publisher.** The workflow
+  records the certificate the APK was actually signed with, so a download can be checked
+  against the keystore you uploaded.
 - **CI and release workflows now run on Node.js 24 actions.** `actions/checkout` and
   `actions/cache` moved to `v7`/`v6`, `actions/setup-java` to `v6`, and
   `actions/upload-artifact` to `v7`. The previous `v4` pins were all Node 20, which GitHub

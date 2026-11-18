@@ -175,16 +175,15 @@ jobs:
           RELEASE_VERSION_CODE: ${{ steps.version.outputs.code }}
         run: ./release.sh "${{ steps.version.outputs.name }}" "${{ steps.version.outputs.code }}"
 
-      - name: Verify signature and record checksums
+      - name: Verify signature
         run: |
           set -euo pipefail
           APK="dist/immich-file-picker-${{ steps.version.outputs.name }}.apk"
           APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
-          "$APKSIGNER" verify --print-certs "$APK"
-          # Fail if the publisher is not the expected company: a release signed by any
-          # other key would be rejected by devices with the real app installed.
-          "$APKSIGNER" verify --print-certs "$APK" | grep -q "O=Virtunio Ltd" \
-            || { echo "::error::APK is not signed by Virtunio Ltd"; exit 1; }
+          # Fails on an unsigned APK. The certificate is not asserted: it is the builder's
+          # key, and a fork legitimately signs with a different one. The output is kept so
+          # the release notes can publish the digest the APK was actually signed with.
+          "$APKSIGNER" verify --print-certs "$APK" | tee "$RUNNER_TEMP/signature.txt"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
@@ -200,6 +199,7 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           VERSION="${{ steps.version.outputs.name }}"
+          SIGNER="$(grep -m1 'certificate DN' "$RUNNER_TEMP/signature.txt" 2>/dev/null || echo 'unknown')"
 
           # Release body = the matching CHANGELOG.md section, so the notes describe what
           # actually changed instead of repeating a generic blurb. The section runs from
@@ -222,13 +222,19 @@ jobs:
           fi
 
           {
-            printf 'Publisher: Virtunio Ltd\n'
-            printf 'Package: com.virtunio.immichpicker\n'
+            printf 'Source: %s\n' "https://github.com/${{ github.repository }}"
+            printf 'Application id: com.virtunio.immichpicker\n'
             printf 'Minimum Android: 8.0 (API 26)\n\n'
             printf '%s\n\n' "$SECTION"
             printf 'Verify the download before installing:\n\n'
             printf '```bash\n'
             printf 'sha256sum -c immich-file-picker-%s.apk.sha256\n' "$VERSION"
+            printf '```\n\n'
+            # The build is signed by whoever owns this repository's keystore secret, so
+            # publish the digest rather than asserting a particular certificate.
+            printf 'Signed with:\n\n'
+            printf '```\n'
+            printf '%s\n' "$SIGNER"
             printf '```\n'
           } > "$RUNNER_TEMP/notes.md"
 
