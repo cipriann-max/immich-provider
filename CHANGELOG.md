@@ -5,11 +5,39 @@ All notable changes to Immich File Picker are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Version
 codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for example
-`v1.1.0`) is the single source of truth for a release.
+`v1.2.0`) is the single source of truth for a release.
 
 ## [Unreleased]
 
 Nothing yet.
+
+## [1.2.0] — 2026-11-18
+
+A permissions release. The app now asks for one permission instead of three, and says what
+went wrong where you are already looking instead of in the notification shade.
+
+### Removed
+
+- **Notifications, and with them `POST_NOTIFICATIONS`.** Nothing in this app ever needed to
+  reach you outside a file picker, so there is no case a notification served better than the
+  picker itself. `PickerNotifications`, its two channels, its strings and its status-bar icon
+  are gone.
+- **`ACCESS_NETWORK_STATE`.** Nothing ever queried connectivity; it was an unused permission.
+
+### Changed
+
+- **The root summary now reports an expired session.** When the server rejects the stored
+  credential, the picker's root row reads "Session expired — open Immich File Picker to sign
+  in again" instead of the generic signed-out hint, so the failure needs no notification to be
+  noticed. Opening a folder still shows the specific `EXTRA_ERROR` text.
+- **The version warning lives only in Settings.** It used to be duplicated as a notification.
+
+### Upgrade notes
+
+- **Only `INTERNET` is requested.** If you previously granted notification access, you can
+  revoke it; nothing uses it any more.
+- The package id, signing key and credential format are unchanged, so this installs over
+  1.1.0 as a normal update and keeps your sign-in.
 
 ## [1.1.0] — 2026-11-17
 
@@ -74,5 +102,6 @@ all. This version replaces that activity with a real Storage Access Framework ro
 - Anyone who relied on the old `GET_CONTENT` picker entry point now reaches the same library
   through DocumentsUI instead; there is no setting to bring the old screen back.
 
-[Unreleased]: https://github.com/cipriann-max/immich-provider/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/cipriann-max/immich-provider/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/cipriann-max/immich-provider/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/cipriann-max/immich-provider/compare/v1.0.0...v1.1.0

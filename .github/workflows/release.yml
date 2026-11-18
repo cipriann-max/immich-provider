@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version name to build (e.g. 1.1.0). Defaults to the tag or the gradle default.'
+        description: 'Version name to build (e.g. 1.2.0). Defaults to the tag or the gradle default.'
         required: false
         type: string
 
@@ -48,7 +48,7 @@ jobs:
           # Last-resort fallback, used only for a manual dispatch with no version input
           # and no tag. Keep in step with defaultVersionName in app/build.gradle.kts.
           if [ -z "$RAW" ]; then
-            RAW="1.1.0"
+            RAW="1.2.0"
           fi
           # major * 10000 + minor * 100 + patch, matching app/build.gradle.kts
           BASE="${RAW%%-*}"

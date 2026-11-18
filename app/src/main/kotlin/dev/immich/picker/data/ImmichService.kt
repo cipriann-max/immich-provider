@@ -53,51 +53,33 @@ object ImmichService {
 
     // ------------------------------------------------------------------ health
 
+    private val authFailed = AtomicBoolean(false)
+
     /**
-     * Last transport/version problem, surfaced by the UI and by the provider's
-     * notifications. Null when the last operation succeeded.
+     * True when the credential present is one the server has already rejected.
+     *
+     * Distinct from "not signed in": a plain sign-out and an expired session look the same
+     * to [isLoggedIn], but the picker's root summary has to tell them apart so the user
+     * knows whether to sign in for the first time or to fix a dead credential.
      */
-    private val lastError = AtomicReference<ServiceError?>(null)
-
-    fun lastError(): ServiceError? = lastError.get()
-
-    fun clearError() {
-        lastError.set(null)
-    }
+    fun isSessionExpired(): Boolean = authFailed.get()
 
     /**
      * Called by the provider when the server rejects the stored credential.
      *
      * The credential itself is kept so the user can see which account failed, but
-     * [isLoggedIn] starts returning false because the provider's root must vanish
-     * and the UI must show the login screen.
+     * [isLoggedIn] starts returning false: the root's summary switches to the signed-out
+     * hint and the settings screen shows the login form.
+     *
+     * This is the whole of the app's failure plumbing. There are no notifications and no
+     * background reporting, so failures are reported only where the user is already
+     * looking — the picker root and the folder that failed.
      */
-    fun onAuthFailure(message: String?) {
-        lastError.set(ServiceError.AuthExpired(message ?: "Immich session expired"))
+    fun onAuthFailure() {
         authFailed.set(true)
         invalidate()
         notifyListeners()
     }
-
-    fun onNetworkFailure(message: String?) {
-        lastError.set(ServiceError.Network(message ?: "Immich server unreachable"))
-        notifyListeners()
-    }
-
-    fun onIncompatibleServer(error: ApiException.IncompatibleSchema) {
-        lastError.set(
-            ServiceError.Incompatible(
-                endpoint = error.endpoint,
-                serverVersion = error.serverVersion,
-                detail = error.detail,
-            ),
-        )
-        notifyListeners()
-    }
-
-    private val authFailed = AtomicBoolean(false)
-
-    fun isAuthFailed(): Boolean = authFailed.get()
 
     // -------------------------------------------------------- provider bridge
 
@@ -147,7 +129,6 @@ object ImmichService {
     /** Forgets a previous auth failure, e.g. after a fresh successful login. */
     fun clearAuthFailure() {
         authFailed.set(false)
-        clearError()
     }
 
     /**
@@ -204,7 +185,6 @@ object ImmichService {
         credentialStore.clear()
         invalidate()
         authFailed.set(false)
-        lastError.set(null)
         runCatching {
             thumbnails.clear()
             originals.clear()
@@ -267,27 +247,6 @@ object ImmichService {
         val client: ImmichApiClient,
         val repository: ImmichRepository,
     )
-
-    /**
-     * A problem the user must be told about. Kept as data so both the Compose UI
-     * and the provider's notification can render the same facts.
-     */
-    sealed class ServiceError {
-        abstract val message: String
-
-        data class AuthExpired(override val message: String) : ServiceError()
-        data class Network(override val message: String) : ServiceError()
-        data class Incompatible(
-            val endpoint: String,
-            val serverVersion: String?,
-            val detail: String,
-        ) : ServiceError() {
-            override val message: String =
-                "Immich $endpoint returned data this app does not understand " +
-                    "(server ${serverVersion ?: "unknown"}). The server version is " +
-                    "probably newer than this build supports."
-        }
-    }
 }
 
 /** Convenience for callers that want "session or a clear error". */

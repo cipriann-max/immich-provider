@@ -59,7 +59,7 @@ val signingKeystoreFile: File? = signingStoreFile
     }
 
 /** Default version when nothing overrides it. */
-val defaultVersionName = "1.1.0"
+val defaultVersionName = "1.2.0"
 
 /**
  * Version stamped into the APK, overridable from a git tag in CI or from `release.sh`
@@ -67,7 +67,7 @@ val defaultVersionName = "1.1.0"
  * the caller used; the code is derived from the name so releases always sort correctly.
  *
  * Derivation: `major * 10000 + minor * 100 + patch`, so 1.0.0 -> 10000, 1.2.3 -> 10203,
- * and this release's 1.1.0 -> 10100.
+ * and this release's 1.2.0 -> 10200.
  * An explicit RELEASE_VERSION_CODE always wins, for a build that must not move the code.
  */
 val versionNameOverride = envOrNull("RELEASE_VERSION_NAME")

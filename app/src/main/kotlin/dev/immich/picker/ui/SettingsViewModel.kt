@@ -181,12 +181,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 service.credentialStore.markLoggedIn()
                 service.clearAuthFailure()
                 service.invalidate()
-                PickerNotifications.cancelAll(getApplication())
 
                 val assessment = VersionGate.assess(serverVersion)
-                if (assessment.isWarning) {
-                    PickerNotifications.notifyVersionWarning(getApplication(), assessment)
-                }
 
                 _state.update {
                     it.copy(
@@ -291,12 +287,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 val (name, email) = withContext(Dispatchers.IO) { session.repository.me() }
                 service.updateStoredVersion(versionString)
-                service.clearError()
 
                 val assessment = VersionGate.assess(version)
-                if (assessment.isWarning) {
-                    PickerNotifications.notifyVersionWarning(getApplication(), assessment)
-                }
 
                 _state.update {
                     it.copy(
@@ -360,7 +352,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
             } catch (e: ApiException.Unauthorized) {
-                service.onAuthFailure(e.message)
+                service.onAuthFailure()
                 _state.update {
                     it.copy(
                         loggedIn = false,
@@ -384,7 +376,6 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun logout() {
         service.logout()
-        PickerNotifications.cancelAll(getApplication())
         _state.value = UiState(
             serverUrl = _state.value.serverUrl,
             authMode = _state.value.authMode,

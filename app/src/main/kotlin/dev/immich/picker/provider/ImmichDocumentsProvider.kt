@@ -145,12 +145,18 @@ class ImmichDocumentsProvider : DocumentsProvider() {
         val ctx = context ?: return cursor
 
         val signedIn = service.isLoggedIn()
+        val expired = service.isSessionExpired()
         val credentials = runCatching { service.credentialStore.current() }.getOrNull()
         // The email alone. `accountLabel` is "Name · email", which DocumentsUI truncates
         // anyway, and the root title already says which service this is.
+        //
+        // An expired session is called out separately from a plain sign-out: the user can
+        // only learn about the failure here, so the summary has to say which of the two
+        // happened rather than leaving them to open a folder to find out.
         val summary = when {
             signedIn -> credentials?.userEmail?.takeIf { it.isNotBlank() }
                 ?: credentials?.accountLabel
+            expired -> ctx.getString(R.string.provider_root_summary_session_expired)
             else -> ctx.getString(R.string.provider_root_summary_signed_out)
         }
 
@@ -458,7 +464,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         } catch (e: ApiException.Unauthorized) {
             Log.w(TAG, "openDocument: credential rejected", e)
-            service.onAuthFailure(e.message)
+            service.onAuthFailure()
             throw FileNotFoundException(
                 "Immich session expired; open Immich File Picker to sign in again, or use an API key",
             )
@@ -760,7 +766,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             }
         } catch (e: ApiException.Unauthorized) {
             Log.w(TAG, "listing: credential rejected", e)
-            service.onAuthFailure(e.message)
+            service.onAuthFailure()
             pager.fail(
                 "Immich rejected the saved credential. Open Immich File Picker to sign in again.",
             )
@@ -872,7 +878,7 @@ class ImmichDocumentsProvider : DocumentsProvider() {
             }
         } catch (e: ApiException.Unauthorized) {
             Log.w(TAG, "album list: credential rejected", e)
-            service.onAuthFailure(e.message)
+            service.onAuthFailure()
             null
         } catch (e: ApiException.Forbidden) {
             Log.w(TAG, "album list: permission denied", e)

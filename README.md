@@ -13,7 +13,7 @@ It is a **standalone, read-only** client. It does not touch the official Immich 
 upload, delete or edit anything, and needs no root, no ADB and no allowlist overrides.
 
 - **Package:** `com.virtunio.immichpicker`
-- **Version:** `1.1.0` — see [CHANGELOG.md](CHANGELOG.md)
+- **Version:** `1.2.0` — see [CHANGELOG.md](CHANGELOG.md)
 - **Publisher:** Virtunio Ltd
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
@@ -106,7 +106,7 @@ Use [`release.sh`](release.sh). It builds, signs, verifies the signature and sta
 APK with a checksum — no GitHub and no CI required:
 
 ```bash
-./release.sh            # version from app/build.gradle.kts (currently 1.1.0)
+./release.sh            # version from app/build.gradle.kts (currently 1.2.0)
 ./release.sh 1.2.3      # explicit version name; versionCode derived as 10203
 ./release.sh 1.2.3 7    # explicit name and code
 ```
@@ -114,8 +114,8 @@ APK with a checksum — no GitHub and no CI required:
 Output:
 
 ```
-dist/immich-file-picker-1.1.0.apk
-dist/immich-file-picker-1.1.0.apk.sha256
+dist/immich-file-picker-1.2.0.apk
+dist/immich-file-picker-1.2.0.apk.sha256
 ```
 
 The script refuses to finish if the APK is unsigned, or if it is signed by a certificate
@@ -186,7 +186,7 @@ Verify any APK's publisher yourself:
 
 ```bash
 "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs \
-  dist/immich-file-picker-1.1.0.apk
+  dist/immich-file-picker-1.2.0.apk
 ```
 
 ### Publishing with GitHub Actions
@@ -201,8 +201,8 @@ Two workflows:
 Cutting a release is tagging:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 The tag is the single source of truth: `release.yml` strips the leading `v`, sets
@@ -426,12 +426,16 @@ receiving app sees the real name and extension; files with no original name get
 
 ### Errors are never silent
 
+There are no notifications and no background reporting. Every failure is shown where the
+user is already looking — the root's summary line, the folder's `EXTRA_ERROR` text, or the
+Settings screen — which is why the app requests no permission beyond `INTERNET`.
+
 | Situation | What happens |
 |---|---|
-| Server unreachable | In-app error, notification, retry with backoff |
-| Token rejected (HTTP 401) | Credential marked invalid, notification opens Settings, picker asks you to sign in again or use an API key |
+| Server unreachable | `EXTRA_ERROR` in the folder, "Test connection" reports it in Settings, retry with backoff |
+| Token rejected (HTTP 401) | Credential marked invalid; the root summary changes to "Session expired…", the folder says to sign in again, Settings shows the login form |
 | Permission missing (HTTP 403) | Credential kept; the missing permission is named and a re-login is **not** requested |
-| Server returns unexpected JSON | Error names the endpoint and server version; notification explains a version mismatch |
+| Server returns unexpected JSON | Error names the endpoint and server version; the version mismatch is also shown as a card in Settings |
 | Request cancelled | Treated as a no-op, as DocumentsUI expects |
 | Server slow | 45 s network timeout per call; the UI shows a spinner and stays responsive |
 
@@ -446,7 +450,7 @@ you which endpoint disagreed and what version answered.
 | Server vs. build | Behaviour |
 |---|---|
 | Same major version | Works normally |
-| Newer major version | Keeps working, shows a warning in-app and as a notification |
+| Newer major version | Keeps working, shows a warning card in Settings |
 | Older than the tested version | Asks you to update your server |
 
 The version this build was generated from and tested against is compiled into
@@ -484,8 +488,10 @@ loaded a 60k library within seconds of opening. 400 is deep enough to find a rec
 keeping an accidental open cheap. Older items remain reachable through Albums.
 
 The root is always present, even signed out: its summary then says a sign-in is needed, and the
-sign-in screen is one tap away. Timeline, Albums and Favorites open to that message rather than
-looking broken.
+sign-in screen is one tap away. If the server has rejected the stored credential the summary
+says **"Session expired — open Immich File Picker to sign in again"** instead, so the failure is
+visible in the picker itself rather than only after opening a folder. Timeline, Albums and
+Favorites open to that message rather than looking broken.
 
 ### Why file names get a numeric prefix
 
@@ -648,8 +654,7 @@ app/src/main/kotlin/dev/immich/picker/
 │   ├── MainActivity.kt         Settings, and DocumentsUI's root settings target
 │   ├── SafPickerBridgeActivity.kt  Makes app-list pickers show Immich, then hands off
 │   ├── SettingsScreen.kt       Compose login/status/cache UI
-│   ├── SettingsViewModel.kt    Login, validation, version checks
-│   └── PickerNotifications.kt  Auth/version/network notifications
+│   └── SettingsViewModel.kt    Login, validation, version checks
 └── tools/openapi/
     ├── generate_models.py          Spec → Kotlin generator
     └── immich-v3.4.1.json          Vendored spec
@@ -672,7 +677,6 @@ resources were generated from:
 |---|---|---|
 | `res/drawable-*/ic_launcher_foreground.png` | 108–432 px | Adaptive-icon foreground, pre-inset for the safe zone |
 | `res/mipmap-*/ic_launcher.png` | 48–192 px | Legacy square icon (API < 26) |
-| `res/drawable-*/ic_stat_immich.png` | 24–96 px | Status-bar notification icon |
 
 Keep the source PNG so the icons can be regenerated at other densities or with a changed
 inset, rather than upscaling a small derivative.
@@ -702,6 +706,10 @@ activity is the one component that answers intents directly, and it only forward
 
 ## Security notes
 
+- **One permission: `INTERNET`.** There is no `POST_NOTIFICATIONS`, no storage permission and
+  no background component that could show anything while the app is not in front of the user.
+  Nothing here has a reason to reach the user outside a picker, so the permission list stays at
+  the single one the app cannot function without.
 - Credentials live in `EncryptedSharedPreferences` backed by an Android Keystore AES-256-GCM
   master key. The secret is unreadable even from a root copy of the app's data directory.
 - The app's data is excluded from cloud backup and device transfer.
