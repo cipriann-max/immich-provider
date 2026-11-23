@@ -1,5 +1,6 @@
 package dev.immich.picker.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.provider.DocumentsContract
@@ -29,6 +30,11 @@ import dev.immich.picker.data.ImmichService
  * one interface, the same one every other path shows, and the result is forwarded unchanged
  * to whoever started this activity.
  *
+ * ## Staying alive for the result
+ *
+ * The manifest entry must not be `noHistory`. Android never delivers `onActivityResult` to a
+ * noHistory activity, so the picked files would never reach the caller.
+ *
  * ## Why not show a grid here
  *
  * An earlier version did exactly that, and it was removed deliberately: two surfaces could
@@ -42,13 +48,10 @@ class SafPickerBridgeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ImmichService.initialize(this)
 
-        // If anything goes wrong before DocumentsUI takes over, finish rather than leaving
-        // an empty screen behind.
-        if (savedInstanceState != null) {
-            setResult(RESULT_CANCELED)
-            finish()
-            return
-        }
+        // Recreated (process death, rotation) while DocumentsUI is on top. The picker is
+        // already running and its result is pending, so do not launch a second one and do
+        // not cancel. Return and let the result arrive in onActivityResult.
+        if (savedInstanceState != null) return
 
         // Forward to whichever activity the system uses for OPEN_DOCUMENT (DocumentsUI).
         // No component is named: naming one would bypass the user's picker on devices that
@@ -61,7 +64,7 @@ class SafPickerBridgeActivity : ComponentActivity() {
         val forwarded = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = sanitizeType(intent?.type)
-            putExtra(Intent.EXTRA_MIME_TYPES, sanitizeTypes(intent))
+            sanitizeTypes(intent)?.let { putExtra(Intent.EXTRA_MIME_TYPES, it) }
             if (intent?.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false) == true) {
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
@@ -79,8 +82,15 @@ class SafPickerBridgeActivity : ComponentActivity() {
         // `UnsafeIntentLaunch` is suppressed for this class in app/lint.xml: `forwarded` is a
         // fresh intent whose every field is re-derived and validated, but lint tracks the
         // source intent's taint through `getStringArrayExtra` and cannot see that.
-        @Suppress("DEPRECATION")
-        startActivityForResult(forwarded, REQUEST_PICK)
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(forwarded, REQUEST_PICK)
+        } catch (e: ActivityNotFoundException) {
+            // No activity handles OPEN_DOCUMENT; finish rather than leave an empty screen.
+            Log.w(TAG, "no activity for OPEN_DOCUMENT", e)
+            setResult(RESULT_CANCELED)
+            finish()
+        }
     }
 
     /**

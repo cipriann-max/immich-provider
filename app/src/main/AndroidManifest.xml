@@ -58,14 +58,18 @@
             app invisible to callers that ask for application/* or */*, which is the
             original reason Immich never appeared in document uploads. What the library can
             serve is decided per request, inside the picker.
+
+            Never add android:noHistory="true" here. Android finishes a noHistory activity as
+            soon as it is covered, so it is gone when DocumentsUI returns and
+            onActivityResult() is never called. The picked files then never reach the calling
+            app. The bridge has to stay alive to receive the result and forward it.
         -->
         <activity
             android:name=".ui.SafPickerBridgeActivity"
             android:exported="true"
             android:label="@string/provider_root_title"
             android:theme="@style/Theme.ImmichPicker"
-            android:excludeFromRecents="true"
-            android:noHistory="true">
+            android:excludeFromRecents="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.GET_CONTENT" />

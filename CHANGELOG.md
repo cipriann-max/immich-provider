@@ -5,9 +5,25 @@ All notable changes to Immich File Picker are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Version
 codes are derived as `major * 10000 + minor * 100 + patch`; the git tag (for example
-`v1.2.0`) is the single source of truth for a release.
+`v1.3.0`) is the single source of truth for a release.
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-11-23
+
+Picking files from an app that reaches Immich through the bridge, browsers for example,
+returned nothing, so uploads never started. This is fixed.
+
+### Fixed
+
+- **Picked files now reach the calling app.** `SafPickerBridgeActivity` was `noHistory`, and
+  Android never delivers `onActivityResult()` to a `noHistory` activity. The result was
+  dropped, so the caller saw no file. The flag is removed.
+- **The result is no longer lost when the bridge is recreated.** If the bridge was recreated
+  (process death, rotation) while DocumentsUI was on top, it cancelled itself. It now does
+  nothing on recreation and lets the pending result arrive.
+- **No more null MIME type extra.** The bridge put `EXTRA_MIME_TYPES` on the forwarded intent
+  even when the caller sent no usable types. It now sets the extra only when there is a list.
 
 ### Changed
 
@@ -123,6 +139,7 @@ all. This version replaces that activity with a real Storage Access Framework ro
 - Anyone who relied on the old `GET_CONTENT` picker entry point now reaches the same library
   through DocumentsUI instead; there is no setting to bring the old screen back.
 
-[Unreleased]: https://github.com/cipriann-max/immich-provider/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/cipriann-max/immich-provider/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/cipriann-max/immich-provider/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/cipriann-max/immich-provider/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/cipriann-max/immich-provider/compare/v1.0.0...v1.1.0

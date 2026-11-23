@@ -13,7 +13,7 @@ It is a **standalone, read-only** client. It does not touch the official Immich 
 upload, delete or edit anything, and needs no root, no ADB and no allowlist overrides.
 
 - **Package:** `com.virtunio.immichpicker`
-- **Version:** `1.2.0`, see [CHANGELOG.md](CHANGELOG.md)
+- **Version:** `1.3.0`, see [CHANGELOG.md](CHANGELOG.md)
 - **Min Android:** 8.0 (API 26)
 - **Tested against Immich server:** `v3.4.1`
 
@@ -106,7 +106,7 @@ Use [`release.sh`](release.sh). It builds, signs, verifies the signature and sta
 APK with a checksum. No GitHub and no CI required:
 
 ```bash
-./release.sh            # version from app/build.gradle.kts (currently 1.2.0)
+./release.sh            # version from app/build.gradle.kts (currently 1.3.0)
 ./release.sh 1.2.3      # explicit version name; versionCode derived as 10203
 ./release.sh 1.2.3 7    # explicit name and code
 ```
@@ -114,8 +114,8 @@ APK with a checksum. No GitHub and no CI required:
 Output:
 
 ```
-dist/immich-file-picker-1.2.0.apk
-dist/immich-file-picker-1.2.0.apk.sha256
+dist/immich-file-picker-1.3.0.apk
+dist/immich-file-picker-1.3.0.apk.sha256
 ```
 
 The script refuses to finish unless the APK is signed, because an unsigned release cannot be
@@ -181,7 +181,7 @@ Verify any APK's signer yourself, for a release you downloaded or one you built:
 
 ```bash
 "$ANDROID_HOME"/build-tools/36.0.0/apksigner verify --print-certs \
-  dist/immich-file-picker-1.2.0.apk
+  dist/immich-file-picker-1.3.0.apk
 ```
 
 A downloaded release and a locally signed build will print **different** certificate
@@ -200,8 +200,8 @@ Two workflows:
 Cutting a release is tagging:
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 The tag is the single source of truth: `release.yml` strips the leading `v`, sets
@@ -483,7 +483,8 @@ The version this build was generated from and tested against is compiled into
 `SafPickerBridgeActivity` is registered for `GET_CONTENT` and `OPEN_DOCUMENT` on `*/*`, which
 is what makes the app appear in choosers that enumerate activities. It shows no UI: it
 re-validates the caller's MIME types, opens DocumentsUI at the Immich root, and returns the
-result verbatim. The provider root remains the only place the library is rendered, so type
+result verbatim. The bridge must stay alive to receive the result, so it must not be
+`noHistory`. The provider root remains the only place the library is rendered, so type
 filtering still happens per request, where the caller's exact request is known.
 
 ### The DocumentsUI root
